@@ -1,0 +1,97 @@
+#!/bin/bash
+#
+# Define the target directory for all repositories.
+echo "Enter the directory path to download the pathogentotree github repo into: e.g. ./pathogentotree : "
+read TARGET_DIR
+#
+# Define the google project id (enable billing for your Cloud project).
+echo "Enter the google project id: e.g. c-auris-cdc : "
+read PROJECT_ID
+#
+# Define the google bucket name.
+echo "Enter the google bucket name: e.g. test-154312-data-bucket : "
+read BUCKET_NAME
+#
+# Define the google region you are working in.
+echo "Enter the google region that you are working in: e.g. us-west1 :"
+read GOOGLE_REGION
+#
+# Define the list of repository URLs
+REPOS=(
+    "https://github.com/tleppertbio/make_mycosnp_script"
+    "https://github.com/tleppertbio/invoke_mycosnp_script"
+    "https://github.com/tleppertbio/mycosnp-bucket-clean"        
+    "https://github.com/tleppertbio/cleanup-mycosnp-vm"
+    "https://github.com/tleppertbio/pathogentotree"
+)
+#
+# Create the target directory if it doesn't exist
+if [ ! -d "$TARGET_DIR" ]; then
+    mkdir -p "$TARGET_DIR"
+    echo "Directory $TARGET_DIR created."
+else
+    echo "Directory $TARGET_DIR already exists."
+    while true; do
+        read -p  "Do you want to reload it? (y/n): " yn
+        case $yn in
+            [Yy]* ) echo "Proceeding..."; echo "directory $TARGET_DIR created";  break;;  # Handle 'y' or 'Y', then break the loop
+            [Nn]* ) echo "Exiting..."; exit;;      # Handle 'n' or 'N', then exit the script
+            * ) echo "Invalid response, please answer yes or no.";; # Handle all other inputs
+        esac
+    done
+fi
+cd "$TARGET_DIR" || exit
+#
+# Loop through the repositories and clone them
+for repo_url in "${REPOS[@]}"; do
+    echo "Cloning $repo_url into $TARGET_DIR..."
+    git clone "$repo_url"
+done
+#
+sed -i "s/c-auris-cdc/$PROJECT_ID/g" make_mycosnp_script.py
+sed -i "s/test-154312-data-bucket/$BUCKET_NAME/g" make_mycosnp_script.py
+sed -i "s/us-west1/$GOOGLE_REGION/g" make_mycosnp_script.py
+sed -i "s/c-auris-cdc/$PROJECT_ID/g" invoke_mycosnp_script.py
+sed -i "s/us-west1/$GOOGLE_REGION/g" invoke_mycosnp_script.py
+sed -i "s/test-154312-data-bucket/$BUCKET_NAME/g" mycosnp-bucket-clean.py
+sed -i "s/test-154312-data-bucket/$BUCKET_NAME/g" finish-project-clean.script
+sed -i "s/test-154312-data-bucket/$BUCKET_NAME/g" tutorial-setup.script
+#
+mkdir -p documentation
+mv pathogentotree.README.md documentation
+mv project_id.README.md documentation
+mv metadata.README.md documentation
+mv reference.README.md documentation
+mv reset.script.README.md documentation
+mv partials.README.md documentation
+mv tutorial.README.md documentation
+mv make_mycosnp_script.README.md documentation
+mv invoke_mycosnp_script.README.md documentation
+mv mycosnp-bucket-clean.README.md documentation
+mv compute_instances.list.example documentation
+mv bucket.list.example documentation
+mv execute-vm-large-2026-01-29.15.48.script documentation
+mv mycosnp.sample.script documentation
+mv cleanup-mycosnp-vm.script.example documentation
+mv cleanup-bucket_2026-01-30_09-49-39.log documentation
+mv sra_now.list documentation
+mv mycosnp-bucket-clean.example documentation
+#
+cp ref-bucket-setup.script documentation
+cp finish-project-clean.script documentation
+cp reset.script documentation
+cp get_started.script documentation
+cp tutorial-setup.script documentation
+#
+chmod 775 ref-bucket-setup.script
+chmod 775 finish-project-clean.script
+chmod 775 reset.script
+chmod 775 get_started.script
+chmod 775 tutorial-setup.script
+#
+chmod 775 partials/earlybam-pickup-startup.script
+chmod 775 partials/finalbam-pickup-startup.script
+chmod 775 partials/trimmed-pickup-startup.script
+#
+echo "All repositories have been cloned."
+echo "To run the tutorial follow the tutorial.README.md in https://github.com/tleppertbio/pathogentotree"

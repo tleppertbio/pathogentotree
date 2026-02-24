@@ -1,0 +1,14 @@
+# Script to copy these reference files to the bucket.
+# replace your source directory and bucket directory pathways - leave file names as is
+gsutil cp /Users/tleppert/Desktop/candidas/reference/new_reference/reference.cluster gs://test-154312-data-bucket/reference.cluster
+gsutil cp /Users/tleppert/Desktop/candidas/reference/new_reference/reference.coords gs://test-154312-data-bucket/reference.coords
+gsutil cp /Users/tleppert/Desktop/candidas/reference/new_reference/reference.delta gs://test-154312-data-bucket/reference.delta
+gsutil cp /Users/tleppert/Desktop/candidas/reference/new_reference/reference.dict gs://test-154312-data-bucket/reference.dict
+gsutil cp /Users/tleppert/Desktop/candidas/reference/new_reference/reference.fa gs://test-154312-data-bucket/reference.fa
+gsutil cp /Users/tleppert/Desktop/candidas/reference/new_reference/reference.fasta gs://test-154312-data-bucket/reference.fasta
+gsutil cp /Users/tleppert/Desktop/candidas/reference/new_reference/reference.fasta.fai gs://test-154312-data-bucket/reference.fasta.fai
+gsutil cp /Users/tleppert/Desktop/candidas/reference/new_reference/bwa/reference.amb gs://test-154312-data-bucket/reference.amb
+gsutil cp /Users/tleppert/Desktop/candidas/reference/new_reference/bwa/reference.ann gs://test-154312-data-bucket/reference.ann
+gsutil cp /Users/tleppert/Desktop/candidas/reference/new_reference/bwa/reference.bwt gs://test-154312-data-bucket/reference.bwt
+gsutil cp /Users/tleppert/Desktop/candidas/reference/new_reference/bwa/reference.pac gs://test-154312-data-bucket/reference.pac
+gsutil cp /Users/tleppert/Desktop/candidas/reference/new_reference/bwa/reference.sa gs://test-154312-data-bucket/reference.sa

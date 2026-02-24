@@ -1,0 +1,21 @@
+#!/bin/bash
+#initialize sra_now.list
+echo "1608966\tSRR14341995" > ./sra_now.list
+#
+# initialize ref-bucket-setup.script
+echo "# Script to copy these reference files to the bucket." > ./ref-bucket-setup.script
+echo "# replace your source directory and bucket directory pathways - leave file names as is" >> ./ref-bucket-setup.script
+echo "gsutil cp ./tutorial/reference.cluster gs://test-154312-data-bucket/reference.cluster" >> ./ref-bucket-setup.script
+echo "gsutil cp ./tutorial/reference.coords gs://test-154312-data-bucket/reference.coords" >> ./ref-bucket-setup.script
+echo "gsutil cp ./tutorial/reference.delta gs://test-154312-data-bucket/reference.delta" >> ./ref-bucket-setup.script
+echo "gsutil cp ./tutorial/reference.dict gs://test-154312-data-bucket/reference.dict" >> ./ref-bucket-setup.script
+echo "gsutil cp ./tutorial/reference.fa gs://test-154312-data-bucket/reference.fa" >> ./ref-bucket-setup.script
+echo "gsutil cp ./tutorial/reference.fasta gs://test-154312-data-bucket/reference.fasta" >> ./ref-bucket-setup.script
+echo "gsutil cp ./tutorial/reference.fasta.fai gs://test-154312-data-bucket/reference.fasta.fai" >> ./ref-bucket-setup.script
+echo "gsutil cp ./tutorial/reference.amb gs://test-154312-data-bucket/reference.amb" >> ./ref-bucket-setup.script
+echo "gsutil cp ./tutorial/reference.ann gs://test-154312-data-bucket/reference.ann" >> ./ref-bucket-setup.script
+echo "gsutil cp ./tutorial/reference.bwt gs://test-154312-data-bucket/reference.bwt" >> ./ref-bucket-setup.script
+echo "gsutil cp ./tutorial/reference.pac gs://test-154312-data-bucket/reference.pac" >> ./ref-bucket-setup.script
+echo "gsutil cp ./tutorial/reference.sa gs://test-154312-data-bucket/reference.sa" >> ./ref-bucket-setup.script
+#
+chmod 775 ./ref-bucket-setup.script

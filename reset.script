@@ -1,0 +1,225 @@
+#!/bin/bash
+# Script that reads a type of reset and a sample number.
+# Given the type of reset, a different action is performed on the sample.
+resettype=$1
+SRR=$2
+#
+#if $1 == earlybam there is a .early.bam in the bucket
+#if $1 == finalbam there is a .bam and .bai in the bucket
+#if $1 == trimmed there is a .1.trimmed.fastq and .2.trimmed.fastq in the bucket
+#if $1 == vm2 there is a .bam and .bai in the bucket and the startup-vm2.script needs to be run
+#if $1 == done run has completed, cleanup
+#if $1 == failed run has failed completely
+#
+# List all files in the bucket and save to bucket file
+gsutil ls gs://test-154312-data-bucket/ > bucket.list
+#
+# Determine if sample.finished is in the bucket, remove it if found
+finishfile=$SRR".finished"
+bucketfile="./bucket.list"
+if grep -qF "$finishfile" "$bucketfile"; then
+    #Remove the .finished from the bucket
+    gsutil rm gs://test-154312-data-bucket/$SRR.finished
+fi
+#
+#Get list of vms from the cloud
+computefile="compute_instances.list"
+gcloud compute instances list > $computefile
+#
+# make SRRLOW a lowercase version of the sample number
+SRRLOW=$(echo "$SRR" | tr '[:upper:]' '[:lower:]')
+#echo "SRRLOW " $SRRLOW
+#
+#Find and remove the vm instance by determining which region/group it was queued in
+vm_a=$SRRLOW"-pathogen-vm.*us-west1-a"
+vm_b=$SRRLOW"-pathogen-vm.*us-west1-b"
+vm_c=$SRRLOW"-pathogen-vm.*us-west1-c"
+#
+# if the vm instance is terminated, flag is initialized
+terminated=0
+#
+# if the second half of the process is run
+vm2_ran=0
+#
+# Find the name of the process that was queued in the compute file list
+var_a=$(sed -n "/${vm_a}/p" ${computefile})
+var_b=$(sed -n "/${vm_b}/p" ${computefile})
+var_c=$(sed -n "/${vm_c}/p" ${computefile})
+#
+# If the process was TERMINATED (or not currently running - definitely don't remove it), then remove it
+if [[ $var_a =~ "TERMINATED" ]]; then
+    terminated=1
+    if [[ $var_a =~ "vm2" ]]; then    
+	vm2_ran=1
+	gcloud compute instances delete $SRRLOW-pathogen-vm2 --zone=us-west1-a --quiet
+    else
+	gcloud compute instances delete $SRRLOW-pathogen-vm --zone=us-west1-a --quiet
+    fi
+elif [[ $var_b =~ "TERMINATED" ]]; then
+    terminated=1
+    if [[ $var_b =~ "vm2" ]]; then        
+	vm2_ran=1
+	gcloud compute instances delete $SRRLOW-pathogen-vm2 --zone=us-west1-b --quiet
+    else
+	gcloud compute instances delete $SRRLOW-pathogen-vm --zone=us-west1-b --quiet
+    fi
+elif [[ $var_c =~ "TERMINATED" ]]; then    
+    terminated=1
+    if [[ $var_c =~ "vm2" ]]; then        
+	vm2_ran=1
+	gcloud compute instances delete $SRRLOW-pathogen-vm2 --zone=us-west1-c --quiet
+    else
+	gcloud compute instances delete $SRRLOW-pathogen-vm --zone=us-west1-c --quiet
+    fi
+fi
+# The criteria for the vm2 to be finished has to also be met
+# If the process is not done and not all files were in the bucket, then vm2 may still need to be run
+if [[ $1 != "done" ]]; then
+    vm2_ran=0
+fi
+#
+# Find current directory path
+current_directory=$(pwd)
+#
+#Find the current timestamp, to create a filename with current time
+TIMESTAMP=$(date +"%Y-%m-%d_%H%M%S")
+if [[ $resettype == "done" && $vm2_ran == "1" ]]; then
+    executefile="clean-${SRR}.script"
+elif [[ $resettype == "vm2" ]]; then
+    executefile="execute-vm2-${SRR}.script"
+elif [[ $resettype == "failed" ]]; then
+    executefile="failed-${SRR}-${TIMESTAMP}.list"
+else
+    executefile="execute-${SRR}-${TIMESTAMP}.script"
+fi
+#
+#Find the path + filename, find it's size and remove it, create a new startup
+#If the vm2 has run, there is a different file name, if only vm1 ran, another name, else vanilla
+if [[ $vm2_ran == "1" && $resettype == "done" ]]; then
+    lgfilename="${current_directory}/vm-running/large/${SRR}-startup-vm2.script"
+    lwfilename="${current_directory}/vm-running/low/${SRR}-startup-vm2.script"
+    mdfilename="${current_directory}/vm-running/medium/${SRR}-startup-vm2.script"
+    xlgfilename="${current_directory}/vm-running/xlarge/${SRR}-startup-vm2.script"
+    xlwfilename="${current_directory}/vm-running/xlow/${SRR}-startup-vm2.script"
+    xxlfilename="${current_directory}/vm-running/xxlarge/${SRR}-startup-vm2.script"
+elif [[ $resettype == "vm2" ]]; then
+    lgfilename="${current_directory}/vm-running/large/${SRR}-startup-vm1.script"
+    lwfilename="${current_directory}/vm-running/low/${SRR}-startup-vm1.script"
+    mdfilename="${current_directory}/vm-running/medium/${SRR}-startup-vm1.script"
+    xlgfilename="${current_directory}/vm-running/xlarge/${SRR}-startup-vm1.script"
+    xlwfilename="${current_directory}/vm-running/xlow/${SRR}-startup-vm1.script"
+    xxlfilename="${current_directory}/vm-running/xxlarge/${SRR}-startup-vm1.script"
+else
+    lgfilename="${current_directory}/vm-running/large/${SRR}-startup.script"
+    lwfilename="${current_directory}/vm-running/low/${SRR}-startup.script"
+    mdfilename="${current_directory}/vm-running/medium/${SRR}-startup.script"
+    xlgfilename="${current_directory}/vm-running/xlarge/${SRR}-startup.script"
+    xlwfilename="${current_directory}/vm-running/xlow/${SRR}-startup.script"
+    xxlfilename="${current_directory}/vm-running/xxlarge/${SRR}-startup.script"
+fi
+#
+# Given the startup script name, location (based on the size of the sample) and the reset type, process the sample
+# This creates a long set of if's but is basically for xlow, low, medium, large, xlarge and xxlarge files
+# If the file is terminated, if the resettype is done, failed or vm2 - different commands are issued to
+# start a new script, queue it to a vm, move the script to a new folder vm-running based on its sizse.
+if [[ -f $lgfilename && $terminated == 1 ]]; then
+    large_file=1
+    if [[ $resettype == "failed" ]]; then
+	echo "mv $current_directory/vm-running/large/$SRR-startup-*.script $current_directory/vm-scripts/$SRR-startup-*.script" > $executefile	
+    else
+	echo "rm $lgfilename" > $executefile
+    fi
+    if [[ $resettype != "done" && $resettype != "failed" ]]; then
+	if [[ $resettype != "vm2" ]]; then
+	    echo "sed 's/SRRtempnumber/$SRR/' partials/$resettype-pickup-setup.script > $current_directory/vm-scripts/$SRR-startup-$resettype.script" > $executefile
+	    echo "chmod 775 $current_directory/vm-scripts/$SRR-startup-$resettype.script" > $executefile
+	    echo 'gcloud compute instances create-with-container $SRRLOW-pathogen-vm --preemptible --zone=us-west1-a --machine-type=n4-highmem-8 --boot-disk-size=200 --container-image="us-west1-docker.pkg.dev/c-auris-cdc/pathogen-repo/pathogentotree" --metadata-from-file user-data=$current_directory/vm-scripts/$SRR-startup-$resettype.script --service-account=250856040547-compute@developer.gserviceaccount.com --scopes=https://www.googleapis.com/auth/devstorage.read_write' > $executefile
+	else
+	    echo 'gcloud compute instances create-with-container $SRRLOW-pathogen-vm2 --zone=us-west1-a --machine-type=e2-highmem-16 --boot-disk-size=300 --container-image="us-west1-docker.pkg.dev/c-auris-cdc/pathogen-repo/pathogentotree" --metadata-from-file user-data=$current_directory/vm-scripts/$SRR-startup-$resettype.script --service-account=250856040547-compute@developer.gserviceaccount.com --scopes=https://www.googleapis.com/auth/devstorage.read_write' > $executefile	
+	fi
+	echo "mv $current_directory/vm-scripts/$SRR-startup-$resettype.script $current_directory/vm-running/large/$SRR-startup-$resettype.script" > $executefile
+    fi
+elif [[ -f $lwfilename && $terminated == 1 ]]; then  # will not be $resettype == vm2 - not low and not done
+    low_file=1
+    if [[ $resettype == "failed" ]]; then
+	echo "mv $current_directory/vm-running/low/$SRR-startup-*.script $current_directory/vm-scripts/$SRR-startup-*.script" > $executefile	
+    else
+	echo "rm $lwfilename" > $executefile
+	echo "sed 's/SRRtempnumber/$SRR/' partials/$resettype-pickup-setup.script > $current_directory/vm-scripts/$SRR-startup-$resettype.script" > $executefile
+	echo "chmod 775 $current_directory/vm-scripts/$SRR-startup-$resettype.script" > $executefile    
+	echo 'gcloud compute instances create-with-container $SRRLOW-pathogen-vm --preemptible --zone=us-west1-a --machine-type=e2-highmem-4 --boot-disk-size=50 --container-image="us-west1-docker.pkg.dev/c-auris-cdc/pathogen-repo/pathogentotree" --metadata-from-file user-data=$current_directory/vm-scripts/$SRR-startup-$resettype.script --service-account=250856040547-compute@developer.gserviceaccount.com --scopes=https://www.googleapis.com/auth/devstorage.read_write' > $executefile
+	echo "mv $current_directory/vm-scripts/$SRR-startup-$resettype.script $current_directory/vm-running/low/$SRR-startup-$resettype.script" > $executefile
+    fi
+elif [[ -f $mdfilename && $terminated == 1 ]]; then
+    medium_file=1
+    if [[ $resettype == "failed" ]]; then
+	echo "mv $current_directory/vm-running/medium/$SRR-startup-*.script $current_directory/vm-scripts/$SRR-startup-*.script" > $executefile
+    else
+	echo "rm $mdfilename" > $executefile
+    fi
+    if [[ $resettype != "done" && $resettype != "failed" ]]; then
+	if [[ $resettype != "vm2" ]]; then            
+            echo "sed 's/SRRtempnumber/$SRR/' partials/$resettype-pickup-setup.script > $current_directory/vm-scripts/$SRR-startup-$resettype.script" > $executefile
+	    echo "chmod 775 $current_directory/vm-scripts/$SRR-startup-$resettype.script" > $executefile    	    
+	    echo 'gcloud compute instances create-with-container $SRRLOW-pathogen-vm --preemptible --zone=us-west1-a --machine-type=e2-highmem-4 --boot-disk-size=50 --container-image="us-west1-docker.pkg.dev/c-auris-cdc/pathogen-repo/pathogentotree" --metadata-from-file user-data=$current_directory/vm-scripts/$SRR-startup-$resettype.script --service-account=250856040547-compute@developer.gserviceaccount.com --scopes=https://www.googleapis.com/auth/devstorage.read_write' > $executefile
+	else
+	    echo 'gcloud compute instances create-with-container $SRRLOW-pathogen-vm2 --zone=us-west1-a --machine-type=n1-highmem-16 --boot-disk-size=300 --container-image="us-west1-docker.pkg.dev/c-auris-cdc/pathogen-repo/pathogentotree" --metadata-from-file user-data=$current_directory/vm-scripts/$SRR-startup-$resettype.script --service-account=250856040547-compute@developer.gserviceaccount.com --scopes=https://www.googleapis.com/auth/devstorage.read_write' > $executefile
+	fi
+	echo "mv $current_directory/vm-scripts/$SRR-startup-$resettype.script $current_directory/vm-running/medium/$SRR-startup-$resettype.script" > $executefile
+    fi
+elif [[ -f $xlgfilename && $terminated == 1 ]]; then
+    xlarge_file=1
+    if [[ $resettype == "failed" ]]; then
+	echo "mv $current_directory/vm-running/xlarge/$SRR-startup-*.script $current_directory/vm-scripts/$SRR-startup-*.script" > $executefile
+    else
+	echo "rm $xlgfilename" > $executefile
+    fi
+    if [[ $resettype != "done" && $resettype != "failed" ]]; then
+	if [[ $resettype != "vm2" ]]; then                
+	    echo "sed 's/SRRtempnumber/$SRR/' partials/$resettype-pickup-setup.script > $current_directory/vm-scripts/$SRR-startup-$resettype.script"
+	    echo "chmod 775 $current_directory/vm-scripts/$SRR-startup-$resettype.script" > $executefile    	    
+	    echo 'gcloud compute instances create-with-container $SRRLOW-pathogen-vm --preemptible --zone=us-west1-a --machine-type=n4-highmem-8 --boot-disk-size=200 --container-image="us-west1-docker.pkg.dev/c-auris-cdc/pathogen-repo/pathogentotree" --metadata-from-file user-data=$current_directory/vm-scripts/$SRR-startup-$resettype.script --service-account=250856040547-compute@developer.gserviceaccount.com --scopes=https://www.googleapis.com/auth/devstorage.read_write' > $executefile
+	else
+	    echo 'gcloud compute instances create-with-container $SRRLOW-pathogen-vm2 --zone=us-west1-a --machine-type=n1-highmem-16 --boot-disk-size=300 --container-image="us-west1-docker.pkg.dev/c-auris-cdc/pathogen-repo/pathogentotree" --metadata-from-file user-data=$current_directory/vm-scripts/$SRR-startup-$resettype.script --service-account=250856040547-compute@developer.gserviceaccount.com --scopes=https://www.googleapis.com/auth/devstorage.read_write' > $executefile
+	fi
+	echo "mv $current_directory/vm-scripts/$SRR-startup-$resettype.script $current_directory/vm-running/xlarge/$SRR-startup-$resettype.script" > $executefilep
+    fi
+elif [[ -f $xlwfilename && $terminated == 1 ]]; then  # will not be $resettype == vm2 - not low or done
+    xlow_file=1
+    if [[ $resettype == "failed" ]]; then
+	echo "mv $current_directory/vm-running/xlow/$SRR-startup-*.script $current_directory/vm-scripts/$SRR-startup-*.script" > $executefile
+    else
+	echo "rm $xlwfilename" > $executefile
+	echo "sed 's/SRRtempnumber/$SRR/' partials/$resettype-pickup-setup.script > $current_directory/vm-scripts/$SRR-startup-$resettype.script" > $executefile
+	echo "chmod 775 $current_directory/vm-scripts/$SRR-startup-$resettype.script" > $executefile        
+	echo 'gcloud compute instances create-with-container $SRRLOW-pathogen-vm --preemptible --zone=us-west1-a --machine-type=e2-highmem-4 --boot-disk-size=50 --container-image="us-west1-docker.pkg.dev/c-auris-cdc/pathogen-repo/pathogentotree" --metadata-from-file user-data=$current_directory/vm-scripts/$SRR-startup-$resettype.script --service-account=250856040547-compute@developer.gserviceaccount.com --scopes=https://www.googleapis.com/auth/devstorage.read_write' > $executefile
+	echo 'mv $current_directory/vm-scripts/$SRR-startup-$resettype.script $current_directory/vm-running/xlow/$SRR-startup-$resettype.script' > $executefile
+    fi
+elif [[ -f $xxlfilename && $terminated == 1 ]]; then
+    xxlarge_file=1
+    if [[ $resettype == "failed" ]]; then
+	echo "mv $current_directory/vm-running/xxlarge/$SRR-startup-*.script $current_directory/vm-scripts/$SRR-startup-*.script" > $executefile
+    else
+	echo "rm $xxlfilename" > $executefile
+    fi
+    if [[ $resettype != "done" && $resettype != "failed" ]]; then
+	if [[ $resettype != "vm2" ]]; then                        
+	    echo "sed 's/SRRtempnumber/$SRR/' partials/$resettype-pickup-setup.script > $current_directory/vm-scripts/$SRR-startup-$resettype.script" > $executefile
+	    echo "chmod 775 $current_directory/vm-scripts/$SRR-startup-$resettype.script" > $executefile    	    
+	    echo 'gcloud compute instances create-with-container $SRRLOW-pathogen-vm --preemptible --zone=us-west1-a --machine-type=e2-highmem-16 --boot-disk-size=500 --container-image="us-west1-docker.pkg.dev/c-auris-cdc/pathogen-repo/pathogentotree" --metadata-from-file user-data=$current_directory/vm-scripts/$SRR-startup-$resettype.script --service-account=250856040547-compute@developer.gserviceaccount.com --scopes=https://www.googleapis.com/auth/devstorage.read_write' > $executefile
+	else
+	    echo 'gcloud compute instances create-with-container $SRRLOW-pathogen-vm2 --zone=us-west1-a --machine-type=n1-highmem-16 --boot-disk-size=500 --container-image="us-west1-docker.pkg.dev/c-auris-cdc/pathogen-repo/pathogentotree" --metadata-from-file user-data=$current_directory/vm-scripts/$SRR-startup-$resettype.script --service-account=250856040547-compute@developer.gserviceaccount.com --scopes=https://www.googleapis.com/auth/devstorage.read_write' > $executefile
+	fi
+	echo "mv $current_directory/vm-scripts/$SRR-startup-$resettype.script $current_directory/vm-running/xxlarge/$SRR-startup-$resettype.script" > $executefile
+    fi
+fi
+#
+# If the execute file exists and is not empty, change is mod and place it in the appropriate folder
+if [ -f "$executefile" ] && [ ! -s "$executefile" ]; then
+    # file exists and is empty
+    rm $executefile
+elif [ -f "$executefile" ]; then
+    # file exists and is not empty 
+    chmod 775 $executefile
+    mv $executefile vm-scripts
+fi

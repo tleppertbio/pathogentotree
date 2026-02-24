@@ -1,0 +1,187 @@
+#!/bin/bash
+#Assign the sample number
+SAMPLE=SRR#
+#the username does not matter, the userid will be appropriately assigned by fix_id.sh
+mkdir -p /home/tleppert/the_data
+mkdir -p /home/tleppert/the_data/reference
+mkdir -p /home/tleppert/the_data/reference/bwa
+chown tleppert:tleppert /home/tleppert/the_data
+chown tleppert:tleppert /home/tleppert/the_data/reference
+chown tleppert:tleppert /home/tleppert/the_data/reference/bwa
+# Run the docker image for google/cloud-sdk
+docker run -d --mount type=bind,src=/home/tleppert/the_data,dst=/the_data -it google/cloud-sdk:slim
+# Give it time to get going
+sleep 60
+# Check if the google/cloud-sdk is running
+GOOGLEDOCKER=google/cloud-sdk:slim
+GCONTAINER_ID=$(docker ps --all --filter ancestor=$GOOGLEDOCKER --format="{{.ID}}" | head -n 1)
+GCONTAINER_STATUS=$(docker inspect --format "{{json .State.Status }}" $GCONTAINER_ID)
+running_str="running"
+if [[ $GCONTAINER_STATUS == *$running_str* ]]; then
+        touch /home/tleppert/google.runs
+fi
+# get pathogentotree running
+docker run -d --mount type=bind,src=/home/tleppert/the_data,dst=/the_data -it us-west1-docker.pkg.dev/c-auris-cdc/pathogen-repo/pathogentotree
+# Give it time to get going
+sleep 60
+# Check if the pathogentotree is running
+PATHOGENDOCKER=us-west1-docker.pkg.dev/c-auris-cdc/pathogen-repo/pathogentotree
+CCONTAINER_ID=$(docker ps --all --filter ancestor=$PATHOGENDOCKER --format="{{.ID}}" | head -n 1)
+cat $CCONTAINER_ID >> /home/tleppert/first.$CCONTAINER_ID.pathogen
+CCONTAINER_STATUS=$(docker inspect --format "{{json .State.Status }}" $CCONTAINER_ID)
+cat $CCONTAINER_STATUS >> /home/tleppert/first.$CCONTAINER_STATUS.pathogen
+running_str="running"
+if [[ $CCONTAINER_STATUS == *$running_str* ]]; then
+        touch /home/tleppert/docker.runs
+fi
+# grab the docker image for google/cloud-sdk:slim and the pathogentotree
+docker ps | grep google | head -n 1 | awk '{print $1}' > /home/tleppert/google-cloud-sdk.id
+docker ps | grep us-west1 | head -n 1 | awk '{print $1}' > /home/tleppert/pathogentotree.id
+GOOGLEIMAGE=$(<"/home/tleppert/google-cloud-sdk.id")
+PATHOGENIMAGE=$(<"/home/tleppert/pathogentotree.id")
+if [[ $CCONTAINER_STATUS == *$running_str* ]] && [[ $GCONTAINER_STATUS == *$running_str* ]]; then
+        # housekeeping
+        docker exec -w /the_data $PATHOGENIMAGE fix-id.sh
+        docker exec -w /the_data/reference $PATHOGENIMAGE fix-id.sh
+        docker exec -w /the_data/reference/bwa $PATHOGENIMAGE fix-id.sh
+        docker exec $PATHOGENIMAGE ln -s /usr/bin/python3 /usr/bin/python
+        # pull reference files
+        docker exec $GOOGLEIMAGE gsutil cp gs://test-154312-data-bucket/reference.cluster /the_data/reference
+        docker exec $GOOGLEIMAGE gsutil cp gs://test-154312-data-bucket/reference.coords /the_data/reference
+        docker exec $GOOGLEIMAGE gsutil cp gs://test-154312-data-bucket/reference.delta /the_data/reference
+        docker exec $GOOGLEIMAGE gsutil cp gs://test-154312-data-bucket/reference.dict /the_data/reference
+        docker exec $GOOGLEIMAGE gsutil cp gs://test-154312-data-bucket/reference.fa /the_data/reference
+        docker exec $GOOGLEIMAGE gsutil cp gs://test-154312-data-bucket/reference.fasta /the_data/reference
+        docker exec $GOOGLEIMAGE gsutil cp gs://test-154312-data-bucket/reference.fasta.fai /the_data/reference
+        docker exec $GOOGLEIMAGE gsutil cp gs://test-154312-data-bucket/reference.amb /the_data/reference/bwa
+        docker exec $GOOGLEIMAGE gsutil cp gs://test-154312-data-bucket/reference.ann /the_data/reference/bwa
+        docker exec $GOOGLEIMAGE gsutil cp gs://test-154312-data-bucket/reference.bwt /the_data/reference/bwa
+        docker exec $GOOGLEIMAGE gsutil cp gs://test-154312-data-bucket/reference.pac /the_data/reference/bwa
+        docker exec $GOOGLEIMAGE gsutil cp gs://test-154312-data-bucket/reference.sa /the_data/reference/bwa
+	docker exec -w /the_data/reference $PATHOGENIMAGE fix-id.sh
+        docker exec -w /the_data/reference/bwa $PATHOGENIMAGE fix-id.sh
+        chown tleppert:tleppert *.id
+        chown tleppert:tleppert *.pathogen
+        # pull and process sra data
+        docker exec -w /the_data $PATHOGENIMAGE execute-pull.sh $SAMPLE
+fi # if $CCONTAINER_STATUS && $GCONTAINER_STATUS both == *$running_str*
+# if data was pulled from ncbi
+if [ -f /home/tleppert/the_data/${SAMPLE}_1.fastq ]; then
+        touch /home/tleppert/running.seqkit
+        docker exec -w /the_data $PATHOGENIMAGE seqkit pair -1 ${SAMPLE}_1.fastq -2 ${SAMPLE}_2.fastq --threads 2
+        # cleanup from execute-pull
+	docker exec -w /the_data $PATHOGENIMAGE rm -rf $SAMPLE
+        docker exec -w /the_data $PATHOGENIMAGE fix-id.sh
+        # if seqkit ran
+        if [ -f /home/tleppert/the_data/${SAMPLE}_1.paired.fastq ]; then
+                touch /home/tleppert/running.FaQCs
+		docker exec -w /the_data $PATHOGENIMAGE FaQCs -d . -1 ${SAMPLE}_1.paired.fastq -2 ${SAMPLE}_2.paired.fastq --prefix $SAMPLE -t 2 --debug 2 > /home/tleppert/the_data/${SAMPLE}.fastp.log
+                # cleanup from seqkit
+                docker exec -w /the_data $PATHOGENIMAGE rm ${SAMPLE}_1.fastq
+                docker exec -w /the_data $PATHOGENIMAGE rm ${SAMPLE}_2.fastq
+                docker exec -w /the_data $PATHOGENIMAGE rm $SAMPLE.base_content.txt
+                docker exec -w /the_data $PATHOGENIMAGE rm $SAMPLE.for_qual_histogram.txt
+                docker exec -w /the_data $PATHOGENIMAGE rm $SAMPLE.length_count.txt
+                docker exec -w /the_data $PATHOGENIMAGE rm $SAMPLE.stats.txt
+                docker exec -w /the_data $PATHOGENIMAGE rm qa.$SAMPLE.base_content.txt
+                docker exec -w /the_data $PATHOGENIMAGE rm qa.$SAMPLE.for_qual_histogram.txt
+                docker exec -w /the_data $PATHOGENIMAGE rm qa.$SAMPLE.length_count.txt
+                docker exec -w /the_data $PATHOGENIMAGE rm $SAMPLE.base.matrix
+                docker exec -w /the_data $PATHOGENIMAGE rm $SAMPLE.quality.matrix
+                docker exec -w /the_data $PATHOGENIMAGE rm qa.$SAMPLE.base.matrix
+                docker exec -w /the_data $PATHOGENIMAGE rm qa.$SAMPLE.quality.matrix
+                docker exec -w /the_data $PATHOGENIMAGE rm $SAMPLE.unpaired.trimmed.fastq
+                docker exec -w /the_data $PATHOGENIMAGE fix-id.sh
+                docker exec $GOOGLEIMAGE gsutil cp /the_data/$SAMPLE.fastp.log gs://test-154312-data-bucket/$SAMPLE.fastp.log
+                docker exec $GOOGLEIMAGE gsutil cp /the_data/$SAMPLE.1.trimmed.fastq gs://test-154312-data-bucket/$SAMPLE.1.trimmed.fastq
+                docker exec $GOOGLEIMAGE gsutil cp /the_data/$SAMPLE.2.trimmed.fastq gs://test-154312-data-bucket/$SAMPLE.2.trimmed.fastq
+                # if FaQCs ran
+                if [ -f /home/tleppert/the_data/${SAMPLE}.1.trimmed.fastq ]; then
+                        touch /home/tleppert/running.bwa
+			docker exec -w /the_data $PATHOGENIMAGE sh -c "bwa mem -t 2 reference/bwa/reference $SAMPLE.1.trimmed.fastq $SAMPLE.2.trimmed.fastq | samtools sort --threads 2 -o /the_data/$SAMPLE.bam"
+			# cleanup from FaQCs
+                        docker exec -w /the_data $PATHOGENIMAGE rm ${SAMPLE}_1.paired.fastq
+                        docker exec -w /the_data $PATHOGENIMAGE rm ${SAMPLE}_2.paired.fastq
+                        docker exec $GOOGLEIMAGE gsutil cp /the_data/$SAMPLE.bam gs://test-154312-data-bucket/${SAMPLE}.early.bam
+                        docker exec -w /the_data $PATHOGENIMAGE fix-id.sh
+                        # if bwa ran
+                        if [ -f /home/tleppert/the_data/$SAMPLE.bam ]; then
+                                touch /home/tleppert/running.MarkDuplicates
+				docker exec -w /the_data $PATHOGENIMAGE java -jar /bin/picard.jar MarkDuplicates REMOVE_DUPLICATES=true ASSUME_SORT_ORDER=coordinate VALIDATION_STRINGENCY=LENIENT I=$SAMPLE.bam O=${SAMPLE}_markdups.bam M=${SAMPLE}_markdups.MarkDuplicates.metrics.txt
+                                # cleanup from bwa
+                                docker exec -w /the_data $PATHOGENIMAGE rm $SAMPLE.1.trimmed.fastq
+                                docker exec -w /the_data $PATHOGENIMAGE rm $SAMPLE.2.trimmed.fastq
+                                docker exec -w /the_data $PATHOGENIMAGE fix-id.sh
+                                # if MarkDuplicates ran
+                                if [ -f /home/tleppert/the_data/${SAMPLE}_markdups.bam ]; then
+                                        touch /home/tleppert/running.CleanSam
+                                        docker exec -w /the_data $PATHOGENIMAGE java -jar /bin/picard.jar CleanSam -I ${SAMPLE}_markdups.bam -O ${SAMPLE}_clean.bam
+                                        # cleanup from MarkDuplicates
+                                        docker exec -w /the_data $PATHOGENIMAGE rm $SAMPLE.bam
+                                        docker exec -w /the_data $PATHOGENIMAGE fix-id.sh
+                                        # if CleanSam ran
+					if [ -f /home/tleppert/the_data/${SAMPLE}_clean.bam ]; then
+                                                touch /home/tleppert/running.FixMateInformation
+						docker exec -w /the_data $PATHOGENIMAGE java -jar /bin/picard.jar FixMateInformation -I ${SAMPLE}_clean.bam -O ${SAMPLE}_fixmate.bam --VALIDATION_STRINGENCY LENIENT
+                                                # cleanup from CleanSam
+                                                docker exec -w /the_data $PATHOGENIMAGE rm ${SAMPLE}_markdups.bam
+                                                docker exec -w /the_data $PATHOGENIMAGE rm ${SAMPLE}_markdups.MarkDuplicates.metrics.txt
+                                                docker exec -w /the_data $PATHOGENIMAGE fix-id.sh
+                                                # if FixMateInformation ran
+                                                if [ -f /home/tleppert/the_data/${SAMPLE}_fixmate.bam ]; then
+                                                        touch /home/tleppert/running.AddOrReplaceReadGroups
+							docker exec -w /the_data $PATHOGENIMAGE java -jar /bin/picard.jar AddOrReplaceReadGroups --INPUT ${SAMPLE}_fixmate.bam --OUTPUT $SAMPLE.bam -ID id -LB library -PL illumina -PU barcode -SM $SAMPLE -CREATE_INDEX true
+							# cleanup from FixMateInformation
+                                                        docker exec -w /the_data $PATHOGENIMAGE rm ${SAMPLE}_clean.bam
+                                                        docker exec -w /the_data $PATHOGENIMAGE fix-id.sh
+                                                        docker exec $GOOGLEIMAGE gsutil cp /the_data/$SAMPLE.bam gs://test-154312-data-bucket/$SAMPLE.bam
+                                                        docker exec $GOOGLEIMAGE gsutil cp /the_data/$SAMPLE.bai gs://test-154312-data-bucket/$SAMPLE.bai
+                                                        # if AddOrReplaceReadGroups ran
+							if [ -f /home/tleppert/the_data/$SAMPLE.bam ]; then
+                                                                touch /home/tleppert/running.gatk
+								docker exec -w /the_data $PATHOGENIMAGE /home/user/gatk-4.6.1.0/gatk --java-options "-Xms6G -Xmx6G" HaplotypeCaller -R reference/reference.fasta -I $SAMPLE.bam -O $SAMPLE.g.vcf.gz -ERC GVCF --sample-ploidy "1"
+       		     		    	    	                # cleanup AddOrReplaceReadGroups
+                                                                docker exec -w /the_data $PATHOGENIMAGE rm ${SAMPLE}_fixmate.bam
+                                                                docker exec -w /the_data $PATHOGENIMAGE fix-id.sh
+                                                                # if gatk ran
+                                                                if [ -f /home/tleppert/the_data/$SAMPLE.g.vcf.gz ]; then
+                                                                        touch /home/tleppert/running.vcf_to_maple
+									docker exec -w /the_data $PATHOGENIMAGE /usr/bin/python3 /bin/gvcf_to_maple_haploid.py -i /the_data/$SAMPLE.g.vcf.gz -DP 20 -GQ 99 -o AND
+                                                                        # cleanup from gatk
+                                                                        docker exec -w /the_data $PATHOGENIMAGE rm $SAMPLE.bam
+                                                                        docker exec -w /the_data $PATHOGENIMAGE rm $SAMPLE.bai
+                                                                        docker exec -w /the_data $PATHOGENIMAGE rm $SAMPLE.g.vcf.gz.tbi
+                                                                        docker exec -w /the_data $PATHOGENIMAGE fix-id.sh
+                                                                        # if vcf_to_maple ran
+                                                                        if [ -f /home/tleppert/the_data/$SAMPLE.maple ]; then
+                                                                                # move files back to data-bucket
+                                                                                touch /home/tleppert/the_data/$SAMPLE.done
+										docker exec $GOOGLEIMAGE gsutil cp /the_data/$SAMPLE.maple gs://test-154312-data-bucket/$SAMPLE.maple
+										docker exec $GOOGLEIMAGE gsutil cp /the_data/$SAMPLE.g.vcf.gz gs://test-154312-data-bucket/$SAMPLE.g.vcf.gz
+										docker exec $GOOGLEIMAGE gsutil cp /the_data/$SAMPLE.done gs://test-154312-data-bucket/$SAMPLE.done
+									fi # if [ -f $SAMPLE.maple ]; then
+								fi # if [ -f $SAMPLE.g.vcf.gz ]; then
+                                                        fi # if [ -f $SAMPLE.bam ]; then
+                                                fi # if [ -f $SAMPLE_fixmate.bam ]; then
+                                        fi # if [ -f $SAMPLE_clean.bam ]; then
+                                fi # if [ -f $SAMPLE_markdups.bam ]; then
+                        fi # if [ -f $SAMPLE.bam ]; then
+                fi # if [ -f $SAMPLE.1.trimmed.fastq ]; then
+        fi # if [ -f $SAMPLE_1.paired.fastq ]; then
+fi # if [ -f $SAMPLE_1.fastq ]; then
+docker exec -w /the_data $PATHOGENIMAGE fix-id.sh
+touch /home/tleppert/the_data/$SAMPLE.finished
+docker exec $GOOGLEIMAGE gsutil cp /the_data/$SAMPLE.finished gs://test-154312-data-bucket/$SAMPLE.finished
+# gcloud compute instances stop vm, avoid extra charges
+sudo shutdown now
+#Note:
+#turning on a shutdown vm, restarts the processing of the invoking script from the beginning.
+#This is fine if you are not too far along the process.
+#If you've spent a fair amount of resources calculating, then it's better to remove the vm
+#and requeue using another script that copies the intermediate saved files from the bucket
+#back to the newly created vm.  NOTE: the newly created vm will have the same name, so you
+#will need to remove the old vm first.  or name the new vm with -a or something. There are
+#scripts that can help you. mycosnp-bucket-clean.py makes a cleanup-mycosnp-vm.script that
+#executes reset.script which cleans the buckets and creates new run scripts with data from
+#the bucket that is complete but not the final files for the process.
+

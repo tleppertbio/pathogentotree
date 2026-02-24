@@ -1,0 +1,44 @@
+#!/bin/bash
+#
+# This script is to be used only at the end of the processing of all samples for an organism.
+# This script will help to clean up old vms, and old bucket items so that we will not be billed.
+#
+# Grab what's in the bucket
+echo "looking at bucket"
+gsutil ls gs://test-154312-data-bucket/ > bucket.list
+bucketfile="./bucket.list"
+if [ -f "$bucketfile" ] && [ ! -s "$bucketfile" ]; then
+    #Remove empty bucket file
+    echo "removing empty bucket"
+    rm $bucketfile
+elif [[ -f "$bucketfile" ]]; then
+    #Remove files from the bucket
+    echo "cleaning files from bucket"
+    while IFS= read -r bline; do
+	gsutil rm "$bline"
+    done < "$bucketfile"
+    #Remove bucket file
+    echo "removing bucket file"
+    rm $bucketfile
+fi
+#
+#Get list of vms
+echo "looking at vms"
+computefile="compute_instances.list"
+gcloud compute instances list > $computefile
+if [ -f "$computefile" ] && [ ! -s "$computefile" ]; then
+    echo "removing empty compute vm list file"
+    #Remove empty compute file
+    rm $computefile
+elif [[ -f "$computefile" ]]; then
+    echo "removing vms from gs"
+    while IFS= read -r cline; do
+	array=( $cline )
+	#Remove vms 
+	vmname="gcloud compute instances delete ${array[0]} --zone=${array[1} --quiet"
+    done < "$computefile"
+    echo "removing vms list file"
+    #Remove compute file
+    rm $computefile
+fi
+echo "cleaning finished"

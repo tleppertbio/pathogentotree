@@ -1,0 +1,12 @@
+This file was created at 2026-01-30_09-49-39.
+removed SRR16249997.done from bucket
+moved SRR16249997.maple from bucket to /maple
+moved SRR16249997.g.vcf.gz from bucket to /maple
+removed SRR16249997.bam from bucket
+removed SRR16249997.bai from bucket
+removed SRR16249997.early.bam from bucket
+removed SRR16249997.fastp.log from bucket
+removed SRR16249997.1.trimmed.fastq from bucket
+removed SRR16249997.2.trimmed.fastq from bucket
+echo 'SRR29681577' not finished.
+echo 'reference' not finished.
