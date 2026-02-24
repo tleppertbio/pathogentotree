@@ -1,0 +1,55 @@
+Performed on silverbullet
+######################################################################################################
+######################################################################################################
+#                                              REFERENCE (7)                                         #
+######################################################################################################
+######################################################################################################
+#
+# 1) BWA_REFERENCE:INPUT_PROC ########################################################################
+#
+cp ../reference.fa .
+cp reference.fa reference.copy.fa
+#
+# 2) BWA_REFERENCE:NUCMER ############################################################################
+#
+nucmer -p reference --coords --maxmatch --nosimplify reference.fa reference.copy.fa
+#
+# 3) BWA_REFERENCE:COORDSTOBED #######################################################################
+#
+show-coords -r -T -H reference.delta > masked_ref_BEFORE_ORDER.bed
+awk '{if ($1 != $3 && $2 != $4) print $0}' masked_ref_BEFORE_ORDER.bed > masked_ref_BEFORE_ORDER2.bed
+awk '{print $8"\t"$1"\t"$2}' masked_ref_BEFORE_ORDER2.bed > masked_ref.bed
+#
+# 4) BWA_REFERENCE:BEDTOOLS_MASKFASTA ################################################################
+#
+bedtools maskfasta -fi reference.fa -bed masked_ref.bed -fo reference.fasta
+#
+# 5) BWA_REFERENCE:SAMTOOLS_FAIDX ####################################################################
+#
+samtools faidx reference.fasta
+#
+# 6) BWA_REFERENCE:PICARD_CREATESEQUENCEDICTIONARY ###################################################
+# v 2.26.10
+#
+java -jar /home/tami/bin/picard.jar CreateSequenceDictionary R=reference.fasta O=reference.dict
+#
+# 7) BWA_REFERENCE:BWA_INDEX ########################################################################
+#
+mkdir bwa
+bwa index -p bwa/reference reference.fasta
+#
+# (creates reference.fa /bwa:reference.amb,reference.ann,reference.bwt,reference.pac,reference.sa)
+#
+#Files created for use in mycosnp/docker process
+#docker cp bwa/reference.amb 297ec6498ead:/reference/bwa/
+#docker cp bwa/reference.ann 297ec6498ead:/reference/bwa/
+#docker cp bwa/reference.bwt 297ec6498ead:/reference/bwa/
+#docker cp bwa/reference.pac 297ec6498ead:/reference/bwa/
+#docker cp bwa/reference.sa 297ec6498ead:/reference/bwa/
+#docker cp reference.cluster 297ec6498ead:/reference
+#docker cp reference.coords 297ec6498ead:/reference
+#docker cp reference.delta 297ec6498ead:/reference
+#docker cp reference.dict 297ec6498ead:/reference
+#docker cp reference.fa 297ec6498ead:/reference
+#docker cp reference.fasta 297ec6498ead:/reference
+#docker cp reference.fasta.fai 297ec6498ead:/reference
