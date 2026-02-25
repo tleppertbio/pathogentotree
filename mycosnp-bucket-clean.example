@@ -1,0 +1,60 @@
+A - when a sample is less than 9GB and can be run in one go
+B - when a sample is >=90GB and needs to be queued in two parts.  The second part vm will be non-preemptible
+
+# Order as appears alphabetically in the bucket.
+A1 SRR16249997.1.trimmed.fastq
+A1 SRR16249997.2.trimmed.fastq
+A3 SRR16249997.bai
+A3 SRR16249997.bam
+B1,A4 SRR16249997.done
+A1 SRR16249997.fastp.log
+B2,A5 SRR16249997.finished
+B1,A4 SRR16249997.g.vcf.gz
+A2 SRR16249997.early.bam only if > 4G
+B1,A4 SRR16249997.maple
+A4 SRR16249997.vm1.done only if non-premptible, relative to .bai and .bam
+
+# Order as appears in order of processing
+A1 SRR16249997.1.trimmed.fastq
+A1 SRR16249997.2.trimmed.fastq
+A1 SRR16249997.fastp.log
+A2 SRR16249997.early.bam only if > 4G
+A3 SRR16249997.bai
+A3 SRR16249997.bam
+B1,A4 SRR16249997.done
+B1,A4 SRR16249997.g.vcf.gz
+B1,A4 SRR16249997.maple
+A4 SRR16249997.vm1.done only if non-premptible, relative to .bai and .bam
+B2,A5 SRR16249997.finished
+
+# Files required to have a successful completion of processing
+B1,A4 SRR16249997.done
+B1,A4 SRR16249997.g.vcf.gz
+B1,A4 SRR16249997.maple
+B2,A5 SRR16249997.finished
+
+# Files required to restart with .bam and .bai intermediate files
+A1 SRR16249997.1.trimmed.fastq
+A1 SRR16249997.2.trimmed.fastq
+A1 SRR16249997.fastp.log
+A2 SRR16249997.early.bam only if > 4G
+A3 SRR16249997.bai
+A3 SRR16249997.bam
+
+# Files required to restart with .early.bam intermediate file
+A1 SRR16249997.1.trimmed.fastq
+A1 SRR16249997.2.trimmed.fastq
+A1 SRR16249997.fastp.log
+A2 SRR16249997.early.bam only if > 4G
+
+# Files required to restart with .trimmed
+A1 SRR16249997.1.trimmed.fastq
+A1 SRR16249997.2.trimmed.fastq
+A1 SRR16249997.fastp.log
+
+# Files required if vm2 was completed properly
+A4 SRR16249997.done
+A4 SRR16249997.g.vcf.gz
+A4 SRR16249997.maple
+A4 SRR16249997.vm1.done only if non-premptible, relative to .bai and .bam
+A5 SRR16249997.finished
