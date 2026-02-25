@@ -17,7 +17,7 @@ See [Docker container pathogentotree](https://github.com/tleppertbio/pathogentot
 3) [google buckets](https://github.com/tleppertbio/pathogentotree/blob/main/README.md#how-to-create-a-bucket-identify-your-google-region-and-viewing-pricing-tablessizes-for-vms), creating a bucket to house your output data until you can retrieve it to your local machine.
 4) [reference data](https://github.com/tleppertbio/pathogentotree/blob/main/README.md#create-and-execute-ref-bucket-setupscript-file), reference files prepped for analysis using nucmer, bedtools maskfasta, samtools faidx, picard.jar and bwa, which reside in the google bucket and vms during analysis.
 5) [directory structure](https://github.com/tleppertbio/pathogentotree/blob/main/README.md#directory-structure-on-your-local-machine), the directory structure that is created on your local machine, pathogentotree's expected structure.
-6) After this program, loop the process by creating more analysis scripts using [make_mycosnp_script.py](https://github.com/tleppertbio/pathogentotree/blob/main/README.md#running-make_mycosnp_scriptpy) invoking with [scripts](https://github.com/tleppertbio/pathogentotree/pathogentotree.README.md#running-invokemycosnpscriptpy) and [invoke](https://github.com/tleppertbio/pathogentotree/blob/main/README.md#execute-scripts-to-invoke-docker-image-on-google-vms) pulling finished data [vm bucket management](https://github.com/tleppertbio/pathogentotree/blob/main/README.md#running-mycosnp-bucket-cleanpy) and [cleanup](https://github.com/tleppertbio/pathogentotree/blob/main/README.md#execute-cleanup-mycosnp-vmscript-to-clean-and-sort-data-and-pull-data-from-bucket).
+6) After this program, loop the process by creating more analysis scripts using [make_mycosnp_script.py](https://github.com/tleppertbio/pathogentotree/blob/main/README.md#running-make_mycosnp_scriptpy) invoking with [scripts](https://github.com/tleppertbio/pathogentotree/blob/main/README.md#running-invoke_mycosnp_scriptpy) and [invoke](https://github.com/tleppertbio/pathogentotree/blob/main/README.md#execute-scripts-to-invoke-docker-image-on-google-vms) pulling finished data [vm bucket management](https://github.com/tleppertbio/pathogentotree/blob/main/README.md#running-mycosnp-bucket-cleanpy) and [cleanup](https://github.com/tleppertbio/pathogentotree/blob/main/README.md#execute-cleanup-mycosnp-vmscript-to-clean-and-sort-data-and-pull-data-from-bucket).
 7) [complete pathogentotree package](https://github.com/tleppertbio/pathogentotree/blob/main/README.md) full documentation to the entire process, setting up google cloud vms to run pathogentotree docker container to analyze nih sra datasets to find reference compared sequence edits.
 
 ### reset.script
@@ -34,10 +34,10 @@ See [Docker container pathogentotree](https://github.com/tleppertbio/pathogentot
   The file compute_instances.list is used for determining which vms to remove and how define the components of the remove command.
 
   Here is an example of a bucket.list file that is created by this reset.script.
-  [example bucket.list file](https://github.com/tleppertbio/pathogentotree/bucket.list.example)
+  [example bucket.list file](https://github.com/tleppertbio/pathogentotree/blob/main/bucket.list.example)
 
   Here is an example of a compute_instances.list file that is created by this reset.script.
-  [example compute_instances.list file](https://github.com/tleppertbio/pathogentotree/compute_instances.list.example)
+  [example compute_instances.list file](https://github.com/tleppertbio/pathogentotree/blob/main/compute_instances.list.example)
 
   **How to run it?**
   
@@ -52,9 +52,9 @@ See [Docker container pathogentotree](https://github.com/tleppertbio/pathogentot
   - reset.script failed - cleans up failed sample runs.
   - can pull scripts from ./partials and modify the sample # so that a partial run can re-start for a sample.
   - reset.script failed moves scripts back into the /vm-running directory to be restarted (often it runs to completion)
-  - [partial scripts](https://github.com/tleppertbio/pathogentotree/partials.README.md)
+  - [partial scripts](https://github.com/tleppertbio/pathogentotree/blob/main/partials.README.md)
 
 Here is an example of every type of trigger that can be contained in the cleanup-mycosnp-vm.script file that is created by this mycosnp-bucket-clean.py python program.
-[example cleanup-mycosnp-vm.script](https://github.com/tleppertbio/pathogentotree/cleanup-mycosnp-vm.script.example)
+[example cleanup-mycosnp-vm.script](https://github.com/tleppertbio/pathogentotree/blob/main/cleanup-mycosnp-vm.script.example)
 
 Here the actual [reset.script](./reset.script) file.
