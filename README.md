@@ -238,7 +238,7 @@ To get metadata use two methods. Each method can return very different data depe
   - You can monitor the bucket by looking at Google Cloud, Cloud Storage, Buckets
   - When the script has run properly (not failed, not crashed, and data is valid), the .g.vcf.gz, .done, .finished and .maple file will be in the bucket.
   - There will be other files in the bucket that will tell you how far the vm got before it crashed.
-  - Sometimes, it is easy to just pick up with an intermediate file and continue on processing, rather than restarting from the beginning. [Restarting failed runs](#running-mycosnpbucketcleanpy).
+  - Sometimes, it is easy to just pick up with an intermediate file and continue on processing, rather than restarting from the beginning. [Restarting failed runs](#running-mycosnp-bucket-cleanpy).
   - When the process script is invoked, the process script is moved from /vm-scripts to /vm-running/size/
 
 ---
