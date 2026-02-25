@@ -3,7 +3,7 @@
 
 **What does this container do?**
 
-Loads a list of sra files from ncbi, compares the files to a reference sequence using google vms, and creates a folder with .g.vcf.gz and .maple files, which contain the edits for each downloaded sra sample.
+Loads a list of sra files from ncbi, compares the files to a reference sequence using google vms running mycosnp like docker image, and creates a folder on your local machine with .g.vcf.gz and .maple files, which contain the edits differing from the reference sequence for each sra sample.
 
 ---
 
