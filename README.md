@@ -80,15 +80,15 @@ In this example, we are looking for candida haemuli samples.
 To get metadata use two methods. Each method can return very different data depending on the organism.
 
   1) https://www.ncbi.nlm.nih.gov/sra/?term=candida+haemuli
-          select 'Send to:' pulldown in upper right under the sra search bar
-          select the File option button
-          select Format pulldown option 'Full XML'
-	  select 'Create File' button
-     this will download a file called bioproject_result.xml
+     - select 'Send to:' pulldown in upper right under the sra search bar
+     - select the File option button
+     - select Format pulldown option 'Full XML'
+	 - select 'Create File' button
+     - this will download a file called bioproject_result.xml
      
      How to create a nice list of metadata? read [metadata.howto](./metadata.README.md)
      
-  2) bigquery https://www.ncbi.nlm.nih.gov/sra/docs/sra-bigquery-examples/
+  3) bigquery https://www.ncbi.nlm.nih.gov/sra/docs/sra-bigquery-examples/
      - You will need to create your own google console cloud bigquery location.
      - You will need an active Google Cloud account with an active project.
      - Make sure you have IAM permissions such as bigquery.datasets.create permission.
