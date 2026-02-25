@@ -28,17 +28,18 @@
  Files created for use in mycosnp/docker process:
  Copy them to the bucket using the script ref-bucket-setup.script
  
- gsutil cp /path/to/files/bwa/reference.amb gs://NameOfBucket/reference/bwa/
- gsutil cp /path/to/files/bwa/reference.ann gs://NameOfBucket/reference/bwa/
- gsutil cp /path/to/files/bwa/reference.bwt gs://NameOfBucket/reference/bwa/
- gsutil cp /path/to/files/bwa/reference.pac gs://NameOfBucket/reference/bwa/
- gsutil cp /path/to/files/bwa/reference.sa gs://NameOfBucket/reference/bwa/
- gsutil cp /path/to/files/reference.cluster gs://NameOfBucket/reference
- gsutil cp /path/to/files/reference.coords gs://NameOfBucket/reference
- gsutil cp /path/to/files/reference.delta gs://NameOfBucket/reference
- gsutil cp /path/to/files/reference.dict gs://NameOfBucket/reference
- gsutil cp /path/to/files/reference.fa gs://NameOfBucket/reference
- gsutil cp /path/to/files/reference.fasta gs://NameOfBucket/reference
- gsutil cp /path/to/files/reference.fasta.fai gs://NameOfBucket/reference
+ gsutil cp /path/to/files/bwa/reference.amb gs://NameOfBucket/reference/bwa/<br/>
+ gsutil cp /path/to/files/bwa/reference.ann gs://NameOfBucket/reference/bwa/<br/>
+ gsutil cp /path/to/files/bwa/reference.bwt gs://NameOfBucket/reference/bwa/<br/>
+ gsutil cp /path/to/files/bwa/reference.pac gs://NameOfBucket/reference/bwa/<br/>
+ gsutil cp /path/to/files/bwa/reference.sa gs://NameOfBucket/reference/bwa/<br/>
+ gsutil cp /path/to/files/reference.cluster gs://NameOfBucket/reference<br/>
+ gsutil cp /path/to/files/reference.coords gs://NameOfBucket/reference<br/>
+ gsutil cp /path/to/files/reference.delta gs://NameOfBucket/reference<br/>
+ gsutil cp /path/to/files/reference.dict gs://NameOfBucket/reference<br/>
+ gsutil cp /path/to/files/reference.fa gs://NameOfBucket/reference<br/>
+ gsutil cp /path/to/files/reference.fasta gs://NameOfBucket/reference<br/>
+ gsutil cp /path/to/files/reference.fasta.fai gs://NameOfBucket/reference<br/>
+ 
 
 For users in the UCSC lab, perform the first 11 operations (including bwa index) on silverbullet
