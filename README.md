@@ -60,7 +60,7 @@ Download all of the repos, update the scripts to reflect your
 2) google bucket name
 3) know the google region that you want to use     
 
-What is in the [get-started.script](./get-started.script) from [github pathogentotree](http://github.com/tleppertbio/pathogentotree)
+What is in the [get_started.script](./get_started.script) from [github pathogentotree](http://github.com/tleppertbio/pathogentotree)
 
 ---
 
