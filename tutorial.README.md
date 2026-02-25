@@ -23,7 +23,7 @@ wait 30 minutes or until the .finished and .done files appear (you may look at t
  - To look at the bucket: https://console.cloud.google.com/storage/browser/YOURBUCKETNAME
  - To look at the vm list: https://console.cloud.google.com/compute/instances?project=YOURPROJECTNAME
 
-python3 ./mycosnp-bucket-clean.py&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#look in the bucket create the cleanup-mycosnp-vm.script
-./cleanup-mycosnp-vm.script&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#execute the cleanup-mycosnp-vm.script
-./finish-project-clean.script&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#cleanup this tutorial/runs when finished with the project
+- python3 ./mycosnp-bucket-clean.py&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#look in the bucket create the cleanup-mycosnp-vm.script
+- ./cleanup-mycosnp-vm.script&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#execute the cleanup-mycosnp-vm.script
+- ./finish-project-clean.script&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#cleanup this tutorial/runs when finished with the project
 
