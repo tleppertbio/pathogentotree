@@ -704,5 +704,3 @@ will need to remove the old vm first.  or name the new vm with -a or something. 
 scripts that can help you. mycosnp-bucket-clean.py makes a cleanup-mycosnp-vm.script that
 executes reset.script which cleans the buckets and creates new run scripts with data from
 the bucket that is complete but not the final files for the process.
-executes reset.script which cleans the buckets and creates new run scripts with data from
-the bucket that is complete but not the final files for the process.
