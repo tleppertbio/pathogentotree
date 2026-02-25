@@ -31,9 +31,9 @@
 
   **How to run it?**
   
-  reset.script is run when ./cleanup-mycosnp-vm.script is invoked.
-  reset.script automatically pulls the partial run scripts from ./partials, adjusts the scripts for the current sample and places the updated script in the vm-scripts folder.
-  The user will need to invoke the execute file in the vm-scripts folder that was created by the ./cleanup-mycosnp-vm.script execution.
+  reset.script is run when ./cleanup-mycosnp-vm.script is invoked.<br/>
+  reset.script automatically pulls the partial run scripts from ./partials, adjusts the scripts for the current sample and places the updated script in the vm-scripts folder.<br/>
+  The user will need to invoke the execute file in the vm-scripts folder that was created by the ./cleanup-mycosnp-vm.script execution.<br/>
 
   **Things to know**
   
