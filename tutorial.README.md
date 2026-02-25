@@ -8,7 +8,7 @@ Read [pathogentotree.README.md](https://github.com/tleppertbio/pathogentotree/pa
 
 In another window, run the following commands
 
-- wget -L https://github.com/tleppertbio/pathogentotree/blob/main/get_started.script <- get the command file from github
+- git clone https://github.com/tleppertbio/pathogentotree      <- clone the pathogentotree repository
 - chmod 775 ./get_started.script      <- make the get_started.script executable
 - ./get_started.script      <- downloads all repos from github, initializes scripts using project_id, bucket, google region
 - ./tutorial-setup.script   <- initializes sra_now.list, ref-bucket-setup.script
