@@ -305,7 +305,7 @@ To get metadata use two methods. Each method can return very different data depe
   - reset.script failed - cleans up failed sample runs
   - can pull scripts from ./partials and modify the sample # so that a partial run can re-start for a sample.
   - reset.script failed moves scripts back into the /vm-running directory to be restarted (often it runs to completion)
-  - [partial scripts](#partialscripts)
+  - [partial scripts](#partial-scripts)
 
   Here is an example of every type of trigger that can be contained in the cleanup-mycosnp-vm.script file that is created by the mycosnp-bucket-clean.py python program.
   [example cleanup-mycosnp-vm.script](./cleanup-mycosnp-vm.script.example)
