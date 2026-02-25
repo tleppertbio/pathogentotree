@@ -279,14 +279,14 @@ To get metadata use two methods. Each method can return very different data depe
 
   **What does this do?**
   
-  cleanup-mycosnp-vm.script runs reset.script, a script that executes in six ways.
-  Requeues a vm using an earlybam file from the bucket, requeues a vm using a .bam and .bai file from the bucket.
-  Requeues a vm using a .1.trimmed.fastq and .2.trimmed.fastq from the bucket.
-  Continues queuing the second half of a process vm2's if the first have of a large run is finished.
-  Pulls files from the bucket to a local ./maple directory and cleans up old files and vms.
-  Flags when a run has failed completely and needs to be requeued by the user.
-  Pulls a list of vms to a file compute_instances.list from the google cloud to check on the status as well as finding the zone.       
-  The file compute_instances.list is used for determining which vms to remove and how define the components of the remove command.
+  - cleanup-mycosnp-vm.script runs reset.script, a script that executes in six ways.
+  - Requeues a vm using an earlybam file from the bucket, requeues a vm using a .bam and .bai file from the bucket.
+  - Requeues a vm using a .1.trimmed.fastq and .2.trimmed.fastq from the bucket.
+  - Continues queuing the second half of a process vm2's if the first have of a large run is finished.
+  - Pulls files from the bucket to a local ./maple directory and cleans up old files and vms.
+  - Flags when a run has failed completely and needs to be requeued by the user.
+  - Pulls a list of vms to a file compute_instances.list from the google cloud to check on the status as well as finding the zone.       
+  - The file compute_instances.list is used for determining which vms to remove and how define the components of the remove command.
   
   Here is an example of a bucket.list file that is created by the reset.script.
   [example bucket.list file](./bucket.list.example)
@@ -318,14 +318,14 @@ Invoked in the cleanup-mycosnp-vm.script
 
   **What does this do?**
   
-  reset.script is run from cleanup-mycosnp-vm.script, reset.script executes in six ways.
-  Requeues a vm using an earlybam file from the bucket, requeues a vm using a .bam and .bai file from the bucket.
-  Requeues a vm using a .1.trimmed.fastq and .2.trimmed.fastq from the bucket.
-  Continues queuing the second half of a process vm2's if the first have of a large run is finished.
-  Pulls files from the bucket to a local ./maple directory and cleans up old files and vms.
-  Flags when a run has failed completely and needs to be requeued by the user.
-  Pulls a list of vms to a file compute_instances.list from the google cloud to check on the status as well as finding the zone.
-  The file compute_instances.list is used for determining which vms to remove and how define the components of the remove command.
+  - eset.script is run from cleanup-mycosnp-vm.script, reset.script executes in six ways.
+  - Requeues a vm using an earlybam file from the bucket, requeues a vm using a .bam and .bai file from the bucket.
+  - Requeues a vm using a .1.trimmed.fastq and .2.trimmed.fastq from the bucket.
+  - Continues queuing the second half of a process vm2's if the first have of a large run is finished.
+  - Pulls files from the bucket to a local ./maple directory and cleans up old files and vms.
+  - Flags when a run has failed completely and needs to be requeued by the user.
+  - Pulls a list of vms to a file compute_instances.list from the google cloud to check on the status as well as finding the zone.
+  - The file compute_instances.list is used for determining which vms to remove and how define the components of the remove command.
 
   Here is an example of a bucket.list file that is created by this reset.script.
   [example bucket.list file](./bucket.list.example)
@@ -361,19 +361,19 @@ Invoked in the cleanup-mycosnp-vm.script
 
   **What do these do?**
   
-  reset.script is run from cleanup-mycosnp-vm.script, reset.script executes in six ways, two can be requeued runs.
-  Requeues a vm using an .early.bam file from the bucket.
-  Requeues a vm using a .1.trimmed.fastq and .2.trimmed.fastq from the bucket.
-  Requeues a vm using a .bam and .bai from the bucket.  
+  - reset.script is run from cleanup-mycosnp-vm.script, reset.script executes in six ways, two can be requeued runs.
+  - Requeues a vm using an .early.bam file from the bucket.
+  - Requeues a vm using a .1.trimmed.fastq and .2.trimmed.fastq from the bucket.
+  - Requeues a vm using a .bam and .bai from the bucket.  
 
   The mycosnp-bucket-clean.example, shows the list of files in the bucket that are required for requeuing
   [mycosnp-bucket-clean.example file](./mycosnp-bucket-clean.example)
 
   **How to run it?**
   
-  reset.script is run when ./cleanup-mycosnp-vm.script is invoked.
-  reset.script automatically pulls the partial run scripts from ./partials, adjusts the scripts for the current sample and places the updated script in the vm-scripts folder.
-  The user will need to invoke the execute file in the vm-scripts folder that was created by the ./cleanup-mycosnp-vm.script execution.
+  - reset.script is run when ./cleanup-mycosnp-vm.script is invoked.
+  - reset.script automatically pulls the partial run scripts from ./partials, adjusts the scripts for the current sample and places the updated script in the vm-scripts folder.
+  - The user will need to invoke the execute file in the vm-scripts folder that was created by the ./cleanup-mycosnp-vm.script execution.
 
   **Things to know**
   
@@ -391,11 +391,11 @@ Invoked in the cleanup-mycosnp-vm.script
 
   **What does this do?**
   
-  Empties bucket and removes all google vm instances.
-  Creates bucket.list and compute_instances.list files.
-  Uses bucket.list and compute_instances.list files to determine which files and vms need to be removed.
-  It also removes the bucket.list file and the compute_instances.list file when done.
-  Use ONLY at the end of an entire analysis when all samples have been run and no more vm's are to be queued.
+  - Empties bucket and removes all google vm instances.
+  - Creates bucket.list and compute_instances.list files.
+  - Uses bucket.list and compute_instances.list files to determine which files and vms need to be removed.
+  - It also removes the bucket.list file and the compute_instances.list file when done.
+  - Use ONLY at the end of an entire analysis when all samples have been run and no more vm's are to be queued.
 
   Here is an example of a bucket.list file that is created by this reset.script.
   [example bucket.list file](./bucket.list.example)
