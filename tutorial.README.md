@@ -8,7 +8,7 @@ Read [pathogentotree.README.md](https://github.com/tleppertbio/pathogentotree/pa
 
 In another window, run the following commands
 
-- git clone https://github.com/tleppertbio/pathogentotree&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#clone the pathogentotree repository
+- git clone https://github.com/tleppertbio/pathogentotree &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#clone the pathogentotree repository
 - chmod 775 ./get_started.script&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#make the get_started.script executable
 - ./get_started.script&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#downloads all repos from github, initializes scripts using project_id, bucket, google region
 - ./tutorial-setup.script&nbsp;&nbsp;&nbsp;#initializes sra_now.list, ref-bucket-setup.script
@@ -23,7 +23,7 @@ wait 30 minutes or until the .finished and .done files appear (you may look at t
  - To look at the bucket: https://console.cloud.google.com/storage/browser/YOURBUCKETNAME
  - To look at the vm list: https://console.cloud.google.com/compute/instances?project=YOURPROJECTNAME
 
-python3 ./mycosnp-bucket-clean.py  <- look in the bucket create the cleanup-mycosnp-vm.script
-./cleanup-mycosnp-vm.script     <- execute the cleanup-mycosnp-vm.script
-./finish-project-clean.script   <- cleanup this tutorial/runs when finished with the project
+python3 ./mycosnp-bucket-clean.py&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#look in the bucket create the cleanup-mycosnp-vm.script
+./cleanup-mycosnp-vm.script&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#execute the cleanup-mycosnp-vm.script
+./finish-project-clean.script&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#cleanup this tutorial/runs when finished with the project
 
