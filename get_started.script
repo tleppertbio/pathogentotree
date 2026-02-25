@@ -1,8 +1,8 @@
 #!/bin/bash
 #
-# Define the target directory for all repositories.
-echo "Enter the directory path to download the pathogentotree github repo into: e.g. ./pathogentotree : "
-read TARGET_DIR
+TARGET_DIR=pathogentotree
+# go up one directory to download all of the repositories into the same folder pathogentotree
+cd ..
 #
 # Define the google project id (enable billing for your Cloud project).
 echo "Enter the google project id: e.g. c-auris-cdc : "
@@ -22,7 +22,6 @@ REPOS=(
     "https://github.com/tleppertbio/invoke_mycosnp_script"
     "https://github.com/tleppertbio/mycosnp-bucket-clean"        
     "https://github.com/tleppertbio/cleanup-mycosnp-vm"
-    "https://github.com/tleppertbio/pathogentotree"
 )
 #
 # Create the target directory if it doesn't exist
@@ -40,7 +39,6 @@ else
         esac
     done
 fi
-cd "$TARGET_DIR" || exit
 #
 # Loop through the repositories and clone them
 for repo_url in "${REPOS[@]}"; do
@@ -48,6 +46,8 @@ for repo_url in "${REPOS[@]}"; do
     git clone "$repo_url"
 done
 #
+cd pathogentotree
+chmod 775 get_started.script
 sed -i "s/c-auris-cdc/$PROJECT_ID/g" make_mycosnp_script.py
 sed -i "s/test-154312-data-bucket/$BUCKET_NAME/g" make_mycosnp_script.py
 sed -i "s/us-west1/$GOOGLE_REGION/g" make_mycosnp_script.py
