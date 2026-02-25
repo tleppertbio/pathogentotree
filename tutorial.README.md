@@ -8,9 +8,11 @@ Read [pathogentotree.README.md](https://github.com/tleppertbio/pathogentotree/pa
 
 In another window, run the following commands
 
-- ./get_started.script    <- downloads all repos from github, initializes scripts using project_id, bucket, google region
+- wget -L [get_started.script](https://github.com/tleppertbio/pathogentotree/get_started.script)
+- chmod 775 ./get_started.script  <- make the get_started.script executable
+- ./get_started.script      <- downloads all repos from github, initializes scripts using project_id, bucket, google region
 - ./tutorial-setup.script   <- initializes sra_now.list, ref-bucket-setup.script
-- ./ref-bucket-setup.script    <- put reference files in your bucket
+- ./ref-bucket-setup.script           <- put reference files in your bucket
 - python3 ./make_mycosnp_script.py    <- create vm scripts
 - python3 ./invoke_mycosnp_script.py  <- create invoke scripts
 - cd vm-scripts
