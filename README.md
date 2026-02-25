@@ -29,7 +29,7 @@ The difference size categories are as follows:
 3) 2-<4GB you can queue up to 1000 of these at the same time without overloading the cloud in your zone<sup>*</sup>.
 4) 4GB-<10GB you can queue up to 1000 of these at the same time without overloading the cloud in your zone<sup>*</sup>.
 5) 10GB-<15GB you can queue up to 100 of these at the same time without overloading the cloud in your zone<sup>*</sup>.
-6) >=15GB you can queue up to 10 of these at the same time without overloading the cloud in your zone<sup>*</sup>.
+6) =>15GB you can queue up to 10 of these at the same time without overloading the cloud in your zone<sup>*</sup>.
 
 <sup>*</sup>watching if flags warning that vm's are not available during queuing is required.  Queuing in the evening or weekends are recommended for lowering costs and usually more vms are available during off peak times.
 [Create a google project](#how-to-create-a-google-project)
