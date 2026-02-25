@@ -345,7 +345,7 @@ Invoked in the cleanup-mycosnp-vm.script
   - reset.script failed - cleans up failed sample runs.
   - can pull scripts from ./partials and modify the sample # so that a partial run can re-start for a sample.
   - reset.script failed moves scripts back into the /vm-running directory to be restarted (often it runs to completion)
-  - [partial scripts](https://github.com/tleppertbio/pathogentotree/partials.README.md)
+  - [partial scripts](./partials.README.md)
 
   Here is an example of every type of trigger that can be contained in the cleanup-mycosnp-vm.script file that is created by this mycosnp-bucket-clean.py python program.
   [example cleanup-mycosnp-vm.script](https://github.com/tleppertbio/pathogentotree/cleanup-mycosnp-vm.script.example)
