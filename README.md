@@ -515,7 +515,7 @@ docker run --mount type=bind,src=/local/pathname/the_data,dst=/the_data -it path
 ### Example processing file script using docker image tleppertwood/pathogentotree
 
 [pathogentotree](./mycosnp.sample.script)<br/>
-#!/bin/bash<br/>
+'''#!/bin/bash<br/>
 #Assign the sample number<br/>
 SAMPLE=SRR#<br/>
 #the username does not matter, the userid will be appropriately assigned by fix_id.sh<br/>
