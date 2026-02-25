@@ -514,74 +514,74 @@ docker run --mount type=bind,src=/local/pathname/the_data,dst=/the_data -it path
 
 ### Example processing file script using docker image tleppertwood/pathogentotree
 
-[pathogentotree](./mycosnp.sample.script)
-#!/bin/bash
-#Assign the sample number
-SAMPLE=SRR#
-#the username does not matter, the userid will be appropriately assigned by fix_id.sh
-mkdir -p /home/tleppert/the_data
-mkdir -p /home/tleppert/the_data/reference
-mkdir -p /home/tleppert/the_data/reference/bwa
-chown tleppert:tleppert /home/tleppert/the_data
-chown tleppert:tleppert /home/tleppert/the_data/reference
-chown tleppert:tleppert /home/tleppert/the_data/reference/bwa
-# Run the docker image for google/cloud-sdk
-docker run -d --mount type=bind,src=/home/tleppert/the_data,dst=/the_data -it google/cloud-sdk:slim
-# Give it time to get going
-sleep 60
-# Check if the google/cloud-sdk is running
-GOOGLEDOCKER=google/cloud-sdk:slim
-GCONTAINER_ID=$(docker ps --all --filter ancestor=$GOOGLEDOCKER --format="{{.ID}}" | head -n 1)
-GCONTAINER_STATUS=$(docker inspect --format "{{json .State.Status }}" $GCONTAINER_ID)
-running_str="running"
-if [[ $GCONTAINER_STATUS == *$running_str* ]]; then
-        touch /home/tleppert/google.runs
-fi
-# get pathogentotree running
-docker run -d --mount type=bind,src=/home/tleppert/the_data,dst=/the_data -it us-west1-docker.pkg.dev/c-auris-cdc/pathogen-repo/pathogentotree
-# Give it time to get going
-sleep 60
-# Check if the pathogentotree is running
-PATHOGENDOCKER=us-west1-docker.pkg.dev/c-auris-cdc/pathogen-repo/pathogentotree
-CCONTAINER_ID=$(docker ps --all --filter ancestor=$PATHOGENDOCKER --format="{{.ID}}" | head -n 1)
-cat $CCONTAINER_ID >> /home/tleppert/first.$CCONTAINER_ID.pathogen
-CCONTAINER_STATUS=$(docker inspect --format "{{json .State.Status }}" $CCONTAINER_ID)
-cat $CCONTAINER_STATUS >> /home/tleppert/first.$CCONTAINER_STATUS.pathogen
-running_str="running"
-if [[ $CCONTAINER_STATUS == *$running_str* ]]; then
-        touch /home/tleppert/docker.runs
-fi
-# grab the docker image for google/cloud-sdk:slim and the pathogentotree
-docker ps | grep google | head -n 1 | awk '{print $1}' > /home/tleppert/google-cloud-sdk.id
-docker ps | grep us-west1 | head -n 1 | awk '{print $1}' > /home/tleppert/pathogentotree.id
-GOOGLEIMAGE=$(<"/home/tleppert/google-cloud-sdk.id")
-PATHOGENIMAGE=$(<"/home/tleppert/pathogentotree.id")
-if [[ $CCONTAINER_STATUS == *$running_str* ]] && [[ $GCONTAINER_STATUS == *$running_str* ]]; then
-        # housekeeping
-        docker exec -w /the_data $PATHOGENIMAGE fix-id.sh
-        docker exec -w /the_data/reference $PATHOGENIMAGE fix-id.sh
-        docker exec -w /the_data/reference/bwa $PATHOGENIMAGE fix-id.sh
-        docker exec $PATHOGENIMAGE ln -s /usr/bin/python3 /usr/bin/python
-        # pull reference files
-        docker exec $GOOGLEIMAGE gsutil cp gs://test-154312-data-bucket/reference.cluster /the_data/reference
-        docker exec $GOOGLEIMAGE gsutil cp gs://test-154312-data-bucket/reference.coords /the_data/reference
-        docker exec $GOOGLEIMAGE gsutil cp gs://test-154312-data-bucket/reference.delta /the_data/reference
-        docker exec $GOOGLEIMAGE gsutil cp gs://test-154312-data-bucket/reference.dict /the_data/reference
-        docker exec $GOOGLEIMAGE gsutil cp gs://test-154312-data-bucket/reference.fa /the_data/reference
-        docker exec $GOOGLEIMAGE gsutil cp gs://test-154312-data-bucket/reference.fasta /the_data/reference
-        docker exec $GOOGLEIMAGE gsutil cp gs://test-154312-data-bucket/reference.fasta.fai /the_data/reference
-        docker exec $GOOGLEIMAGE gsutil cp gs://test-154312-data-bucket/reference.amb /the_data/reference/bwa
-        docker exec $GOOGLEIMAGE gsutil cp gs://test-154312-data-bucket/reference.ann /the_data/reference/bwa
-        docker exec $GOOGLEIMAGE gsutil cp gs://test-154312-data-bucket/reference.bwt /the_data/reference/bwa
-        docker exec $GOOGLEIMAGE gsutil cp gs://test-154312-data-bucket/reference.pac /the_data/reference/bwa
-        docker exec $GOOGLEIMAGE gsutil cp gs://test-154312-data-bucket/reference.sa /the_data/reference/bwa
-	docker exec -w /the_data/reference $PATHOGENIMAGE fix-id.sh
-        docker exec -w /the_data/reference/bwa $PATHOGENIMAGE fix-id.sh
-        chown tleppert:tleppert *.id
-        chown tleppert:tleppert *.pathogen
-        # pull and process sra data
-        docker exec -w /the_data $PATHOGENIMAGE execute-pull.sh $SAMPLE
-fi # if $CCONTAINER_STATUS && $GCONTAINER_STATUS both == *$running_str*
+[pathogentotree](./mycosnp.sample.script)<br/>
+#!/bin/bash<br/>
+#Assign the sample number<br/>
+SAMPLE=SRR#<br/>
+#the username does not matter, the userid will be appropriately assigned by fix_id.sh<br/>
+mkdir -p /home/tleppert/the_data<br/>
+mkdir -p /home/tleppert/the_data/reference<br/>
+mkdir -p /home/tleppert/the_data/reference/bwa<br/>
+chown tleppert:tleppert /home/tleppert/the_data<br/>
+chown tleppert:tleppert /home/tleppert/the_data/reference<br/>
+chown tleppert:tleppert /home/tleppert/the_data/reference/bwa<br/>
+#Run the docker image for google/cloud-sdk<br/>
+docker run -d --mount type=bind,src=/home/tleppert/the_data,dst=/the_data -it google/cloud-sdk:slim<br/>
+#Give it time to get going<br/>
+sleep 60<br/>
+#Check if the google/cloud-sdk is running<br/>
+GOOGLEDOCKER=google/cloud-sdk:slim<br/>
+GCONTAINER_ID=$(docker ps --all --filter ancestor=$GOOGLEDOCKER --format="{{.ID}}" | head -n 1)<br/>
+GCONTAINER_STATUS=$(docker inspect --format "{{json .State.Status }}" $GCONTAINER_ID)<br/>
+running_str="running"<br/>
+if [[ $GCONTAINER_STATUS == *$running_str* ]]; then<br/>
+    touch /home/tleppert/google.runs<br/>
+fi<br/>
+#get pathogentotree running<br/>
+docker run -d --mount type=bind,src=/home/tleppert/the_data,dst=/the_data -it us-west1-docker.pkg.dev/c-auris-cdc/pathogen-repo/pathogentotree<br/>
+#Give it time to get going<br/>
+sleep 60<br/>
+#Check if the pathogentotree is running<br/>
+PATHOGENDOCKER=us-west1-docker.pkg.dev/c-auris-cdc/pathogen-repo/pathogentotree<br/>
+CCONTAINER_ID=$(docker ps --all --filter ancestor=$PATHOGENDOCKER --format="{{.ID}}" | head -n 1)<br/>
+cat $CCONTAINER_ID >> /home/tleppert/first.$CCONTAINER_ID.pathogen<br/>
+CCONTAINER_STATUS=$(docker inspect --format "{{json .State.Status }}" $CCONTAINER_ID)<br/>
+cat $CCONTAINER_STATUS >> /home/tleppert/first.$CCONTAINER_STATUS.pathogen<br/>
+running_str="running"<br/>
+if [[ $CCONTAINER_STATUS == *$running_str* ]]; then<br/>
+    touch /home/tleppert/docker.runs<br/>
+fi<br/>
+#grab the docker image for google/cloud-sdk:slim and the pathogentotree<br/>
+docker ps | grep google | head -n 1 | awk '{print $1}' > /home/tleppert/google-cloud-sdk.id<br/>
+docker ps | grep us-west1 | head -n 1 | awk '{print $1}' > /home/tleppert/pathogentotree.id<br/>
+GOOGLEIMAGE=$(<"/home/tleppert/google-cloud-sdk.id")<br/>
+PATHOGENIMAGE=$(<"/home/tleppert/pathogentotree.id")<br/>
+if [[ $CCONTAINER_STATUS == *$running_str* ]] && [[ $GCONTAINER_STATUS == *$running_str* ]]; then<br/>
+    #housekeeping<br/>
+    docker exec -w /the_data $PATHOGENIMAGE fix-id.sh<br/>
+    docker exec -w /the_data/reference $PATHOGENIMAGE fix-id.sh<br/>
+    docker exec -w /the_data/reference/bwa $PATHOGENIMAGE fix-id.sh<br/>
+    docker exec $PATHOGENIMAGE ln -s /usr/bin/python3 /usr/bin/python<br/>
+    #pull reference files<br/>
+    docker exec $GOOGLEIMAGE gsutil cp gs://test-154312-data-bucket/reference.cluster /the_data/reference<br/>
+    docker exec $GOOGLEIMAGE gsutil cp gs://test-154312-data-bucket/reference.coords /the_data/reference<br/>
+    docker exec $GOOGLEIMAGE gsutil cp gs://test-154312-data-bucket/reference.delta /the_data/reference<br/>
+    docker exec $GOOGLEIMAGE gsutil cp gs://test-154312-data-bucket/reference.dict /the_data/reference<br/>
+    docker exec $GOOGLEIMAGE gsutil cp gs://test-154312-data-bucket/reference.fa /the_data/reference<br/>
+    docker exec $GOOGLEIMAGE gsutil cp gs://test-154312-data-bucket/reference.fasta /the_data/reference<br/>
+    docker exec $GOOGLEIMAGE gsutil cp gs://test-154312-data-bucket/reference.fasta.fai /the_data/reference<br/>
+    docker exec $GOOGLEIMAGE gsutil cp gs://test-154312-data-bucket/reference.amb /the_data/reference/bwa<br/>
+    docker exec $GOOGLEIMAGE gsutil cp gs://test-154312-data-bucket/reference.ann /the_data/reference/bwa<br/>
+    docker exec $GOOGLEIMAGE gsutil cp gs://test-154312-data-bucket/reference.bwt /the_data/reference/bwa<br/>
+    docker exec $GOOGLEIMAGE gsutil cp gs://test-154312-data-bucket/reference.pac /the_data/reference/bwa<br/>
+    docker exec $GOOGLEIMAGE gsutil cp gs://test-154312-data-bucket/reference.sa /the_data/reference/bwa<br/>
+	docker exec -w /the_data/reference $PATHOGENIMAGE fix-id.sh<br/>
+    docker exec -w /the_data/reference/bwa $PATHOGENIMAGE fix-id.sh<br/>
+    chown tleppert:tleppert *.id<br/>
+    chown tleppert:tleppert *.pathogen<br/>
+    #pull and process sra data<br/>
+    docker exec -w /the_data $PATHOGENIMAGE execute-pull.sh $SAMPLE<br/>
+fi # if $CCONTAINER_STATUS && $GCONTAINER_STATUS both == *$running_str*<br/>
 # if data was pulled from ncbi
 if [ -f /home/tleppert/the_data/${SAMPLE}_1.fastq ]; then
         touch /home/tleppert/running.seqkit
