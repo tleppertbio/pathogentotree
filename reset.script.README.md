@@ -6,19 +6,19 @@ After running a docker images of tleppertwood/pathogentotree process on a google
 Find sra sample data from nih that has been analyzed and download it to a local directory, or requeue partially finished data.
 Finished sample data analysis has been compared to reference sequence and has returned comparison edits in the form of .g.vcf.gz and .maple files.
 Partially analyzed sample data can be re-queued to complete comparison to reference sequence.
-See [Docker container pathogentotree](https://github.com/tleppertbio/pathogentotree/pathogentotree.README.md) the docker container that performs the comparisons.
+See [Docker container pathogentotree](https://github.com/tleppertbio/pathogentotree/blob/main/README.md) the docker container that performs the comparisons.
 
 ---
 
 ## What will you need
 
-1) [collect metadata](https://github.com/tleppertbio/pathogentotree/metadata.README.md), to determine if you have the correct samples and the size of the sample file.
-2) [sra_now.list](https://github.com/tleppertbio/pathogentotree/pathogentotree.README.md#create-sranowlist-file), a file containing the size of the sample file and the sra number, tab separated.
-3) [google buckets](https://github.com/tleppertbio/pathogentotree/pathogentotree.README.md#how-to-create-a-bucket-identify-your-google-region-and-viewing-pricing-tablessizes-for-vms), creating a bucket to house your output data until you can retrieve it to your local machine.
-4) [reference data](https://github.com/tleppertbio/pathogentotree/pathogentotree.README.md#create-and-execute-refbucketsetupscript-file), reference files prepped for analysis using nucmer, bedtools maskfasta, samtools faidx, picard.jar and bwa, which reside in the google bucket and vms during analysis.
-5) [directory structure](https://github.com/tleppertbio/pathogentotree/pathogentotree.README.md#directory-structure-on-your-local-machine), the directory structure that is created on your local machine, pathogentotree's expected structure.
-6) After this program, loop the process by creating more analysis scripts using [make_mycosnp_script.py](https://github.com/tleppertbio/pathogentotree/pathogentotree.README.md#running-makemycosnpscriptpy) invoking with [scripts](https://github.com/tleppertbio/pathogentotree/pathogentotree.README.md#running-invokemycosnpscriptpy) and [invoke](https://github.com/tleppertbio/pathogentotree/pathogentotree.README.md#execute-scripts-to-invoke-docker-image-on-google-vms) pulling finished data [vm bucket management](https://github.com/tleppertbio/pathogentotree/pathogentotree.README.md#running-mycosnpbucketcleanpy) and [cleanup](https://github.com/tleppertbio/pathogentotree/pathogentotree.README.md#execute-cleanupmycosnpvmscript-to-clean-and-sort-data-and-pull-data-from-bucket).
-7) [complete pathogentotree package](https://github.com/tleppertbio/pathogentotree/pathogentotree.README.md) full documentation to the entire process, setting up google cloud vms to run pathogentotree docker container to analyze nih sra datasets to find reference compared sequence edits.
+1) [collect metadata](https://github.com/tleppertbio/pathogentotree/blob/main/metadata.README.md), to determine if you have the correct samples and the size of the sample file.
+2) [sra_now.list](https://github.com/tleppertbio/pathogentotree/blob/main/README.md#create-sra_nowlist-file), a file containing the size of the sample file and the sra number, tab separated.
+3) [google buckets](https://github.com/tleppertbio/pathogentotree/blob/main/README.md#how-to-create-a-bucket-identify-your-google-region-and-viewing-pricing-tablessizes-for-vms), creating a bucket to house your output data until you can retrieve it to your local machine.
+4) [reference data](https://github.com/tleppertbio/pathogentotree/blob/main/README.md#create-and-execute-ref-bucket-setupscript-file), reference files prepped for analysis using nucmer, bedtools maskfasta, samtools faidx, picard.jar and bwa, which reside in the google bucket and vms during analysis.
+5) [directory structure](https://github.com/tleppertbio/pathogentotree/blob/main/README.md#directory-structure-on-your-local-machine), the directory structure that is created on your local machine, pathogentotree's expected structure.
+6) After this program, loop the process by creating more analysis scripts using [make_mycosnp_script.py](https://github.com/tleppertbio/pathogentotree/blob/main/README.md#running-make_mycosnp_scriptpy) invoking with [scripts](https://github.com/tleppertbio/pathogentotree/pathogentotree.README.md#running-invokemycosnpscriptpy) and [invoke](https://github.com/tleppertbio/pathogentotree/blob/main/README.md#execute-scripts-to-invoke-docker-image-on-google-vms) pulling finished data [vm bucket management](https://github.com/tleppertbio/pathogentotree/blob/main/README.md#running-mycosnp-bucket-cleanpy) and [cleanup](https://github.com/tleppertbio/pathogentotree/blob/main/README.md#execute-cleanup-mycosnp-vmscript-to-clean-and-sort-data-and-pull-data-from-bucket).
+7) [complete pathogentotree package](https://github.com/tleppertbio/pathogentotree/blob/main/README.md) full documentation to the entire process, setting up google cloud vms to run pathogentotree docker container to analyze nih sra datasets to find reference compared sequence edits.
 
 ### reset.script
 
