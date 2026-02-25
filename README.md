@@ -165,7 +165,7 @@ To get metadata use two methods. Each method can return very different data depe
   The processing scripts interact with the pathogentotree docker image via a google vm.
   This script executes a sequence of programs to compare sample sequences to a reference and finds edit differences
   Edit differences are listed in .g.vcf.gz and .maple files.
-  [Diagram of mycosnp based workflow](http://github.com/tleppertbio/make_mycosnp_script/mycosnp-based-workflow.png)
+  [Diagram of mycosnp based workflow](./mycosnp-based-workflow.png)
   **How to run it?**
   
   python3 make_mycosnp_script.py
