@@ -110,7 +110,9 @@ To get metadata use two methods. Each method can return very different data depe
      save the results of your query to a file on your computer.
 
      How to create a [sra_now.list](./metadata.README.md) from metadata.
- 
+
+---
+
 ### Create sra_now.list file
 
   Create file sra_now.list add SRR#'s or ERR#'s to this list, the list has two columns.
@@ -120,6 +122,8 @@ To get metadata use two methods. Each method can return very different data depe
 
   This information comes from your metadata results [Collecting Metadata](./metadata.README.md)
   Example [sra_now.list](./sra_now.list) file.
+
+---
 
 ### Create and execute ref-bucket-setup.script file
 
@@ -149,6 +153,8 @@ To get metadata use two methods. Each method can return very different data depe
    ./ref-bucket-setup.script
 
    Example [ref-bucket-setup.script](./ref-bucket-setup.script)
+
+--- 
 
 ### Running make_mycosnp_script.py
 
@@ -180,6 +186,8 @@ To get metadata use two methods. Each method can return very different data depe
   Here is an example of the type of file that is created by this make_mycosnp_scripts.py python program 
   [example mycosnp processing file script](./mycosnp.sample.script) 
 
+---
+
 ### Running invoke_mycosnp_script.py
 
   **What does this do?**
@@ -209,6 +217,8 @@ To get metadata use two methods. Each method can return very different data depe
   Here is an example of the type of file that is created by this invoke_mycosnp_scripts.py python program                 
   [example vm invoke script](./execute-vm-large-2026-01-29.15.48.script)
 
+---
+
 ### Execute scripts to invoke docker image on google vms
 
   **What does this do?**
@@ -231,6 +241,8 @@ To get metadata use two methods. Each method can return very different data depe
   - There will be other files in the bucket that will tell you how far the vm got before it crashed.
   - Sometimes, it is easy to just pick up with an intermediate file and continue on processing, rather than restarting from the beginning. [Restarting failed runs](#running-mycosnpbucketcleanpy).
   - When the process script is invoked, the process script is moved from /vm-scripts to /vm-running/size/
+
+---
 
 ### Running mycosnp-bucket-clean.py
 
@@ -260,6 +272,8 @@ To get metadata use two methods. Each method can return very different data depe
 
   Here is an example of a log file that is created by this mycosnp-bucket-clean.py python program.
   [example cleanup-bucket-DATE.log](./cleanup-bucket_2026-01-30_09-49-39.log)   
+
+---
 
 ### Execute cleanup-mycosnp-vm.script to clean and sort data and pull data from bucket
 
@@ -296,6 +310,8 @@ To get metadata use two methods. Each method can return very different data depe
 
   Here is an example of every type of trigger that can be contained in the cleanup-mycosnp-vm.script file that is created by the mycosnp-bucket-clean.py python program.
   [example cleanup-mycosnp-vm.script](./cleanup-mycosnp-vm.script.example)
+
+---
 
 ### Reset script
 Invoked in the cleanup-mycosnp-vm.script
@@ -337,6 +353,8 @@ Invoked in the cleanup-mycosnp-vm.script
 
   Here the actual [reset.script](./reset.script) file.
 
+---
+
 ### Partial Scripts
   Invoked if a sample has been partially run and a complete intermediate file has been generated.
   The intermediate file (residing in the bucket), can be pulled into a new vm and the processing can be started from the point after the generation of that (or those) file(s).
@@ -366,6 +384,8 @@ Invoked in the cleanup-mycosnp-vm.script
   The script for [earlybam-pickup-startup.script](./partials/earlybam-pickup-startup.script)
   The script for [finalbam-pickup-startup.script](./partials/finalbam-pickup-startup.script)
   The script for [trimmed-pickup-startup.script](./partials/trimmed-pickup-startup.script]
+
+---
 
 ### End of project - cleanup
 
@@ -401,26 +421,28 @@ Invoked in the cleanup-mycosnp-vm.script
 In order to run the tutorial,
 You have to create a new directory (or reload an existing directory) using the get_started.script
 
-view sra-now.list by typing 'cat sra-now.list'; contains the list of samples to run
-view ref-bucket-setup.script by typing 'cat ref-bucket-setup.script'; script to move reference files to the bucket
-run ref-bucket-setup.script by typing './ref-bucket-setup.script'; put the reference files into the bucket
+view sra-now.list by typing 'cat sra-now.list'; contains the list of samples to run<br/>
+view ref-bucket-setup.script by typing 'cat ref-bucket-setup.script'; script to move reference files to the bucket<br/>
+run ref-bucket-setup.script by typing './ref-bucket-setup.script'; put the reference files into the bucket<br/>
 
-run make_mycosnp_script.py by typing 'python3 make_mycosnp_script.py'; make the script to process the sample
-run invoke_mycosnp_script.py by typing 'python3 invoke_mycosnp_script.py'; make the script to invoke the sample
-move to the vm-scripts folder by typing 'cd ./vm-scripts'; 
+run make_mycosnp_script.py by typing 'python3 make_mycosnp_script.py'; make the script to process the sample<br/>
+run invoke_mycosnp_script.py by typing 'python3 invoke_mycosnp_script.py'; make the script to invoke the sample<br/>
+move to the vm-scripts folder by typing 'cd ./vm-scripts';<br/>
 
-run execute-vm-size-date-time.script by typing './execute-vm-size-date-time.script'; invoke the vm
-move back to the /example directory by typing 'cd ../'
+run execute-vm-size-date-time.script by typing './execute-vm-size-date-time.script'; invoke the vm<br/>
+move back to the /example directory by typing 'cd ../'<br/>
 
-wait 30 minutes or until the .finished and .done files appear (you may look at the bucket and the running vm)
- - To look at the bucket: https://console.cloud.google.com/storage/browser/YOURBUCKETNAME
- - To look at the vm list: https://console.cloud.google.com/compute/instances?project=YOURPROJECTNAME
+wait 30 minutes or until the .finished and .done files appear (you may look at the bucket and the running vm)<br/>
+ - To look at the bucket: https://console.cloud.google.com/storage/browser/YOURBUCKETNAME<br/>
+ - To look at the vm list: https://console.cloud.google.com/compute/instances?project=YOURPROJECTNAME<br/>
  
-run mycosnp-bucket-clean.py by typing 'python3 mycosnp-bucket-clean.py'; look for runs to clean up
-run cleanup-mycosnp-vm.script by typing './cleanup-mycosnp-vm.script'; cleanup files that have finished
-run finish-project-clean.script by typing './finish-project-clean.script'; at the end of the project, cleanup
+run mycosnp-bucket-clean.py by typing 'python3 mycosnp-bucket-clean.py'; look for runs to clean up<br/>
+run cleanup-mycosnp-vm.script by typing './cleanup-mycosnp-vm.script'; cleanup files that have finished<br/>
+run finish-project-clean.script by typing './finish-project-clean.script'; at the end of the project, cleanup<br/>
 
-[tutorial](https://github.com/tleppertbio/pathogentotree/tutorial.README.md)
+---
+
+# [Click here for the tutorial](https://github.com/tleppertbio/pathogentotree/tutorial.README.md)
 
 ---
 
