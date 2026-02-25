@@ -8,16 +8,16 @@ Read [pathogentotree.README.md](https://github.com/tleppertbio/pathogentotree/pa
 
 In another window, run the following commands
 
-- wget -L 'https://github.com/tleppertbio/pathogentotree/get_started.script'
-- chmod 775 ./get_started.script  <- make the get_started.script executable
+- wget -L https://github.com/tleppertbio/pathogentotree/blob/main/get_started.script <- get the command file from github
+- chmod 775 ./get_started.script      <- make the get_started.script executable
 - ./get_started.script      <- downloads all repos from github, initializes scripts using project_id, bucket, google region
 - ./tutorial-setup.script   <- initializes sra_now.list, ref-bucket-setup.script
 - ./ref-bucket-setup.script           <- put reference files in your bucket
 - python3 ./make_mycosnp_script.py    <- create vm scripts
 - python3 ./invoke_mycosnp_script.py  <- create invoke scripts
-- cd vm-scripts
+- cd vm-scripts                       <- change to the vm-scripts folder
 - ./execute-vm-size-date-time.script  <- invoke the vms
-- cd ../
+- cd ../                              <- go back to the original folder
 
 wait 30 minutes or until the .finished and .done files appear (you may look at the bucket and the running vm)
  - To look at the bucket: https://console.cloud.google.com/storage/browser/YOURBUCKETNAME
