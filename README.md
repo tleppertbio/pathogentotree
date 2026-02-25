@@ -12,8 +12,8 @@ Loads a list of sra files from ncbi, compares the files to a reference sequence 
 1) [metadata](./metadata.README.md) to determine if you have the correct samples and the size of the sample file.
 2) [reference data](./reference.README.md) prepped for analysis using nucmer, bedtools maskfasta, samtools faidx, picard.jar and bwa.
 3) [get_started.script](./get_started.script) run to download repos, fix scripts to reflect the google project, bucket and region
-4) [invoke bash scripts](#running-make_mycosnp_script.py) to set up and run google cloud pathogentotree docker container analysis.
-5) [bucket scripts](#running-mycosnpbucketcleanpy) to download results from your google bucket to your local directory.
+4) [invoke bash scripts](#running-make_mycosnp_scriptpy) to set up and run google cloud pathogentotree docker container analysis.
+5) [bucket scripts](#running-mycosnp_bucket_cleanpy) to download results from your google bucket to your local directory.
 
 ## Directory structure on your local machine
 
