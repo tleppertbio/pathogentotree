@@ -272,6 +272,8 @@ To get metadata use two methods. Each method can return very different data depe
   Here is an example of a log file that is created by this mycosnp-bucket-clean.py python program.
   [example cleanup-bucket-DATE.log](./cleanup-bucket_2026-01-30_09-49-39.log)   
 
+  Here is a link to the github repository for [mycosnp-bucket-clean](https://github.com/tleppertbio/mycosnp-bucket-clean)
+  
 ---
 
 ### Execute cleanup-mycosnp-vm.script to clean and sort data and pull data from bucket
