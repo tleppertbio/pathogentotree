@@ -4,20 +4,22 @@
   The partial scripts are contained in the ./partials folder.<br/>
   
   The script for [earlybam-pickup-startup.script](./partials/earlybam-pickup-startup.script)<br/>
-      - is copied by the reset.script (invoked by cleanup-mycosnp-vm.script)
-      - the sample id is modified to be the current sample
-      - the script is placed in the vm-scripts folder
-      - an execute-SRR#-DATE.script is created to invoke the vm to run.
+  - is copied by the reset.script (invoked by cleanup-mycosnp-vm.script)
+  - the sample id is modified to be the current sample
+  - the script is placed in the vm-scripts folder
+  - an execute-SRR#-DATE.script is created to invoke the vm to run.<br/>
+  
   The script for [finalbam-pickup-startup.script](./partials/finalbam-pickup-startup.script)<br/>
-      - is copied by the reset.script (invoked by cleanup-mycosnp-vm.script)
-      - the sample id is modified to be the current sample
-      - the script is placed in the vm-scripts folder
-      - an execute-SRR#-DATE.script is created to invoke the vm to run.
+  - is copied by the reset.script (invoked by cleanup-mycosnp-vm.script)
+  - the sample id is modified to be the current sample
+  - the script is placed in the vm-scripts folder
+  - an execute-SRR#-DATE.script is created to invoke the vm to run.<br/>
+  
   The script for [trimmed-pickup-startup.script](./partials/trimmed-pickup-startup.script)<br/>
-      - is copied by the reset.script (invoked by cleanup-mycosnp-vm.script)
-      - the sample id is modified to be the current sample
-      - the script is placed in the vm-scripts folder
-      - an execute-SRR#-DATE.script is created to invoke the vm to run.
+  - is copied by the reset.script (invoked by cleanup-mycosnp-vm.script)
+  - the sample id is modified to be the current sample
+  - the script is placed in the vm-scripts folder
+  - an execute-SRR#-DATE.script is created to invoke the vm to run.<br/>
   
 
   **What do these do?**
