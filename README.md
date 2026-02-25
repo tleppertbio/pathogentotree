@@ -448,67 +448,69 @@ run finish-project-clean.script by typing './finish-project-clean.script'; at th
 
 ### How to create the docker image tleppertwood/pathogentotree:latest
 
-docker run -it ashedpotatoes/sranwrp:1.1.26
-root@f2cc5eb30ffe:#
-cd /home
-mkdir -p tleppert   # The username here is irrelevant, the userid will be assigned to match your userid
-mkdir -p tleppert/the_data   # All data will be piped through the /the_data wormhole
-mkdir -p tleppert/the_data/reference     # Reference data is expected to be here
-mkdir -p tleppert/the_data/reference/bwa # Reference data is expected to be here
-sudo apt-get update
-apt-get install -y openjdk-17-jdk
-sudo apt update
-sudo apt --reinstall install python3 python3-minimal
+docker run -it ashedpotatoes/sranwrp:1.1.26<br/>
+root@f2cc5eb30ffe:#<br/>
+cd /home<br/>
+mkdir -p tleppert   # The username here is irrelevant, the userid will be assigned to match your userid<br/>
+mkdir -p tleppert/the_data   # All data will be piped through the /the_data wormhole<br/>
+mkdir -p tleppert/the_data/reference     # Reference data is expected to be here<br/>
+mkdir -p tleppert/the_data/reference/bwa # Reference data is expected to be here<br/>
+sudo apt-get update<br/>
+apt-get install -y openjdk-17-jdk<br/>
+sudo apt update<br/>
+sudo apt --reinstall install python3 python3-minimal<br/>
 
-#in another window outside of docker
-#note the f2cc53b30ffe is from running ashedpototoes/sranwrp:1.1.26 and viewing the root@#
-docker cp bin/execute-pull.sh f2cc5eb30ffe:/bin
-docker cp bin/bwa f2cc5eb30ffe:/bin
-docker cp bin/FaQCs f2cc5eb30ffe:/bin
-docker cp bin/fasterq-dump-orig.3.2.1 f2cc5eb30ffe:/bin/fasterq-dump
-docker cp bin/fix-docker-id.sh f2cc5eb30ffe:/bin
-docker cp bin/fix-id.sh f2cc5eb30ffe:/bin
-docker cp bin/picard.jar f2cc5eb30ffe:/bin
-docker cp bin/prefetch-orig.3.2.1 f2cc5eb30ffe:/bin/prefetch
-docker cp bin/samn-pull.sh f2cc5eb30ffe:/bin
-docker cp bin/seqkit f2cc5eb30ffe:/bin
-docker cp bin/srr-pull.sh f2cc5eb30ffe:/bin
-docker cp bin/gvcf_to_maple_haploid.py f2cc5eb30ffe:/bin
-docker cp bin/gatk-4.6.1.0.tar f2cc5eb30ffe:/home/tleppert
+#in another window outside of docker<br/>
+#note the f2cc53b30ffe is from running ashedpototoes/sranwrp:1.1.26 and viewing the root@#<br/>
+docker cp bin/execute-pull.sh f2cc5eb30ffe:/bin<br/>
+docker cp bin/bwa f2cc5eb30ffe:/bin<br/>
+docker cp bin/FaQCs f2cc5eb30ffe:/bin<br/>
+docker cp bin/fasterq-dump-orig.3.2.1 f2cc5eb30ffe:/bin/fasterq-dump<br/>
+docker cp bin/fix-docker-id.sh f2cc5eb30ffe:/bin<br/>
+docker cp bin/fix-id.sh f2cc5eb30ffe:/bin<br/>
+docker cp bin/picard.jar f2cc5eb30ffe:/bin<br/>
+docker cp bin/prefetch-orig.3.2.1 f2cc5eb30ffe:/bin/prefetch<br/>
+docker cp bin/samn-pull.sh f2cc5eb30ffe:/bin<br/>
+docker cp bin/seqkit f2cc5eb30ffe:/bin<br/>
+docker cp bin/srr-pull.sh f2cc5eb30ffe:/bin<br/>
+docker cp bin/gvcf_to_maple_haploid.py f2cc5eb30ffe:/bin<br/>
+docker cp bin/gatk-4.6.1.0.tar f2cc5eb30ffe:/home/tleppert<br/>
 
-#back in the docker window
-#unpack the gatk just uploaded
-cd /home/tleppert
-tar -xvf gatk-4.6.1.0.tar
-rm gatk-4.6.1.0.tar
+#back in the docker window<br/>
+#unpack the gatk just uploaded<br/>
+cd /home/tleppert<br/>
+tar -xvf gatk-4.6.1.0.tar<br/>
+rm gatk-4.6.1.0.tar<br/>
 
-#adjust path in the docker
-PATH="/home/user/gatk-4.6.1.0:/usr/lib/jvm/java-17-openjdk-amd64/bin:$PATH"
+#adjust path in the docker<br/>
+PATH="/home/user/gatk-4.6.1.0:/usr/lib/jvm/java-17-openjdk-amd64/bin:$PATH"<br/>
 
-#then exit
-exit
+#then exit<br/>
+exit<br/>
 
-(now the image has been modified)
-docker commit f2cc5eb30ffe pathogen_tree
-sha256:77fd77f6d46c39d2006015c676f7b9a4e03006f1486fd2d6460786867e983a09
-(base) 10:12:48 SB:/storage2/tami/C.posadasii/docker$  Tuesday October 14 2025 4.64GB
+(now the image has been modified)<br/>
+docker commit f2cc5eb30ffe pathogen_tree<br/>
+sha256:77fd77f6d46c39d2006015c676f7b9a4e03006f1486fd2d6460786867e983a09<br/>
+(base) 10:12:48 SB:/storage2/tami/C.posadasii/docker$  Tuesday October 14 2025 4.64GB<br/>
 
-#docker tag local-image:tagname new-repo:tagname
-#docker push new-repo:tagname
-docker tag pathogen_tree:latest pathogentotree:latest
-docker tag pathogen_tree:latest tleppertwood/pathogentotree:latest
-docker push tleppertwood/pathogentotree:latest
-latest: digest: sha256:817254ed0a574557853395b4596186f656a62ec5940e870e04794a3415325cee size: 6637
-Docker repository 2.21GB
+#docker tag local-image:tagname new-repo:tagname<br/>
+#docker push new-repo:tagname<br/>
+docker tag pathogen_tree:latest pathogentotree:latest<br/>
+docker tag pathogen_tree:latest tleppertwood/pathogentotree:latest<br/>
+docker push tleppertwood/pathogentotree:latest<br/>
+latest: digest: sha256:817254ed0a574557853395b4596186f656a62ec5940e870e04794a3415325cee size: 6637<br/>
+Docker repository 2.21GB<br/>
 
-# for a new repository go here:
-https://console.cloud.google.com/artifacts/create-repo?project=NAMEOFPROJECT
+#for a new repository go here:<br/>
+https://console.cloud.google.com/artifacts/create-repo?project=NAMEOFPROJECT<br/>
 
-docker tag tleppertwood/pathogentotree:latest us-west1-docker.pkg.dev/NAMEOFPROJECT/pathogen-repo/pathogentotree
-docker push us-west1-docker.pkg.dev/NAMEOFPROJECT/pathogen-repo/pathogentotree
+docker tag tleppertwood/pathogentotree:latest us-west1-docker.pkg.dev/NAMEOFPROJECT/pathogen-repo/pathogentotree<br/>
+docker push us-west1-docker.pkg.dev/NAMEOFPROJECT/pathogen-repo/pathogentotree<br/>
 
-(Now you can run your new image with the new software inside /bin)
-docker run --mount type=bind,src=/local/pathname/the_data,dst=/the_data -it pathogen_tree
+(Now you can run your new image with the new software inside /bin)<br/>
+docker run --mount type=bind,src=/local/pathname/the_data,dst=/the_data -it pathogen_tree<br/>
+
+----
 
 ### Example processing file script using docker image tleppertwood/pathogentotree
 
