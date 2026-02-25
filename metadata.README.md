@@ -38,17 +38,10 @@ To get metadata use two methods. Each method can return very different data depe
         - Click Create dataset.
 	
      generate an sql query such as one of these:
-     a) SELECT distinct(tax_id) from `nih-sra-datastore.sra_tax_analysis_tool.tax_analysis`
-        WHERE name like "%andid%aemuli%"
-     b) SELECT * FROM `nih-sra-datastore.sra.metadata` as m
-        JOIN `nih-sra-datastore.sra_tax_analysis_tool.tax_analysis` as tax ON m.acc = tax.acc
-        WHERE tax.tax_id = 45357 
-     c) SELECT * FROM `nih-sra-datastore.sra.metadata` as m
-        JOIN `nih-sra-datastore.sra_tax_analysis_tool.tax_analysis_info` as info ON m.acc = info.acc
-        JOIN `nih-sra-datastore.sra_tax_analysis_tool.tax_analysis` as tax on m.acc = tax.acc
-        WHERE tax.tax_id = 45357 and m.librarylayout = "PAIRED"
-     d) SELECT * FROM `nih-sra-datastore.sra.metadata` WHERE organism = 'Candidozyma haemuli' OR
-        sample_name LIKE '%andid%haemuli%' OR organism LIKE '%andid%haemuli%'
+     - SELECT distinct(tax_id) from `nih-sra-datastore.sra_tax_analysis_tool.tax_analysis` WHERE name like "%andid%aemuli%"
+     - SELECT * FROM `nih-sra-datastore.sra.metadata` as m JOIN `nih-sra-datastore.sra_tax_analysis_tool.tax_analysis` as tax ON m.acc = tax.acc WHERE tax.tax_id = 45357 
+     - SELECT * FROM `nih-sra-datastore.sra.metadata` as m JOIN `nih-sra-datastore.sra_tax_analysis_tool.tax_analysis_info` as info ON m.acc = info.acc JOIN `nih-sra-datastore.sra_tax_analysis_tool.tax_analysis` as tax on m.acc = tax.acc WHERE tax.tax_id = 45357 and m.librarylayout = "PAIRED"
+     - SELECT * FROM `nih-sra-datastore.sra.metadata` WHERE organism = 'Candidozyma haemuli' OR sample_name LIKE '%andid%haemuli%' OR organism LIKE '%andid%haemuli%'
 	
      save the results of your query to a file on your computer.
 
