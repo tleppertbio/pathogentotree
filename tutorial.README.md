@@ -19,9 +19,9 @@ In another window, run the following commands
 - ./execute-vm-size-date-time.script&nbsp;&nbsp;#invoke the vms
 - cd ../&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#go back to the original folder
 
-wait 30 minutes or until the .finished and .done files appear (you may look at the bucket and the running vm)
- - To look at the bucket: https://console.cloud.google.com/storage/browser/YOURBUCKETNAME
- - To look at the vm list: https://console.cloud.google.com/compute/instances?project=YOURPROJECTNAME
+- wait 30 minutes or until the .finished and .done files appear (you may look at the bucket and the running vm)
+    - To look at the bucket: https://console.cloud.google.com/storage/browser/YOURBUCKETNAME
+    - To look at the vm list: https://console.cloud.google.com/compute/instances?project=YOURPROJECTNAME
 
 - python3 ./mycosnp-bucket-clean.py&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#look in the bucket create the cleanup-mycosnp-vm.script
 - ./cleanup-mycosnp-vm.script&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#execute the cleanup-mycosnp-vm.script
