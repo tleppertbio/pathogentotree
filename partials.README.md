@@ -1,18 +1,19 @@
 # Partial Scripts                                                                                                            
   Invoked if a sample has been partially run and a complete intermediate file has been generated.                              
   The intermediate file (residing in the bucket), can be pulled into a new vm and the processing can be started from the point after the generation of that (or those) file(s).
-  The partial scripts are contained in the ./partials folder.
-  The script for [earlybam-pickup-startup.script](./partials/earlybam-pickup-startup.script)
+  The partial scripts are contained in the ./partials folder.<br/>
+  
+  The script for [earlybam-pickup-startup.script](./partials/earlybam-pickup-startup.script)<br/>
       - is copied by the reset.script (invoked by cleanup-mycosnp-vm.script)
       - the sample id is modified to be the current sample
       - the script is placed in the vm-scripts folder
       - an execute-SRR#-DATE.script is created to invoke the vm to run.
-  The script for [finalbam-pickup-startup.script](./partials/finalbam-pickup-startup.script)
+  The script for [finalbam-pickup-startup.script](./partials/finalbam-pickup-startup.script)<br/>
       - is copied by the reset.script (invoked by cleanup-mycosnp-vm.script)
       - the sample id is modified to be the current sample
       - the script is placed in the vm-scripts folder
       - an execute-SRR#-DATE.script is created to invoke the vm to run.
-  The script for [trimmed-pickup-startup.script](./partials/trimmed-pickup-startup.script)
+  The script for [trimmed-pickup-startup.script](./partials/trimmed-pickup-startup.script)<br/>
       - is copied by the reset.script (invoked by cleanup-mycosnp-vm.script)
       - the sample id is modified to be the current sample
       - the script is placed in the vm-scripts folder
