@@ -24,14 +24,14 @@ See [Docker container pathogentotree](https://github.com/tleppertbio/pathogentot
 
   **What does this do?**
   
-  reset.script is run from cleanup-mycosnp-vm.script, reset.script executes in six ways.
-  Requeues a vm using an earlybam file from the bucket, requeues a vm using a .bam and .bai file from the bucket.
-  Requeues a vm using a .1.trimmed.fastq and .2.trimmed.fastq from the bucket.
-  Continues queuing the second half of a process vm2's if the first have of a large run is finished.
-  Pulls files from the bucket to a local ./maple directory and cleans up old files and vms.
-  Flags when a run has failed completely and needs to be requeued by the user.
-  Pulls a list of vms to a file compute_instances.list from the google cloud to check on the status as well as finding the zone.
-  The file compute_instances.list is used for determining which vms to remove and how define the components of the remove command.
+  reset.script is run from cleanup-mycosnp-vm.script, reset.script executes in six ways.<br/>
+  Requeues a vm using an earlybam file from the bucket, requeues a vm using a .bam and .bai file from the bucket.<br/>
+  Requeues a vm using a .1.trimmed.fastq and .2.trimmed.fastq from the bucket.<br/>
+  Continues queuing the second half of a process vm2's if the first have of a large run is finished.<br/>
+  Pulls files from the bucket to a local ./maple directory and cleans up old files and vms.<br/>
+  Flags when a run has failed completely and needs to be requeued by the user.<br/>
+  Pulls a list of vms to a file compute_instances.list from the google cloud to check on the status as well as finding the zone.<br/>
+  The file compute_instances.list is used for determining which vms to remove and how define the components of the remove command.<br/>
 
   Here is an example of a bucket.list file that is created by this reset.script.
   [example bucket.list file](https://github.com/tleppertbio/pathogentotree/blob/main/bucket.list.example)
