@@ -45,15 +45,16 @@ for repo_url in "${REPOS[@]}"; do
 done
 #
 cd $TARGET_DIR
-sed -i "s/c-auris-cdc/$PROJECT_ID/g" make_mycosnp_script.py
+sed "s/c-auris-cdc/$PROJECT_ID/g" make_mycosnp_script/make_mycosnp_script.py > make_mycosnp_script.py
 sed -i "s/test-154312-data-bucket/$BUCKET_NAME/g" make_mycosnp_script.py
 sed -i "s/us-west1/$GOOGLE_REGION/g" make_mycosnp_script.py
-sed -i "s/c-auris-cdc/$PROJECT_ID/g" invoke_mycosnp_script.py
+sed "s/c-auris-cdc/$PROJECT_ID/g" invoke_mycosnp_script/invoke_mycosnp_script.py > invoke_mycosnp_script.py
 sed -i "s/us-west1/$GOOGLE_REGION/g" invoke_mycosnp_script.py
-sed -i "s/test-154312-data-bucket/$BUCKET_NAME/g" mycosnp-bucket-clean.py
+sed "s/test-154312-data-bucket/$BUCKET_NAME/g" mycosnp-bucket-clean/mycosnp-bucket-clean.py > mycosnp-bucket-clean.py
 sed -i "s/test-154312-data-bucket/$BUCKET_NAME/g" finish-project-clean.script
 sed -i "s/test-154312-data-bucket/$BUCKET_NAME/g" tutorial-setup.script
 #
+cp cleanup-mycosnp-vm/cleanup-mycosnp-vm.script cleanup-mycosnp-vm.script
 mkdir -p documentation
 mv pathogentotree.README.md documentation
 mv project_id.README.md documentation
