@@ -16,7 +16,7 @@ In another window, run the following commands
 - ./tutorial-setup.script                                   #initializes sra_now.list, ref-bucket-setup.script
 - ./ref-bucket-setup.script                                 #put reference files in your bucket
 - python3 ./make_mycosnp_script.py                          #create vm scripts
-- python3 ./invoke_mycosnp_script.py                        #create invoke scripts, answer 1,0,0,0,0,0
+- python3 ./invoke_mycosnp_script.py                        #create invoke scripts, answer 1,0,0,0,0,0, you are running a single file <1GB, see sra_now.list.
 - cd vm-scripts                                             #change to the vm-scripts folder
 - ./execute-vm-size-date-time.script                        #invoke the vms
 - cd ../                                                    #go back to the original folder
