@@ -1,6 +1,6 @@
 #!/bin/bash
 #initialize sra_now.list
-echo "1608966\tSRR14341995" > ./sra_now.list
+echo -e "1608966\tSRR14341995" > ./sra_now.list
 #
 # initialize ref-bucket-setup.script
 echo "# Script to copy these reference files to the bucket." > ./ref-bucket-setup.script
