@@ -3,7 +3,7 @@
 
 **What does this container do?**
 
-Loads a list of sra files from ncbi, compares the files to a reference sequence using google vms running mycosnp like docker image, and creates a folder on your local machine with .g.vcf.gz and .maple files, which contain the edits differing from the reference sequence for each sra sample.
+Loads a list of sra files from ncbi, compares the files to a reference sequence using google vms running mycosnp like docker image, and creates a ./maple folder in your working directory on your local machine with .g.vcf.gz and .maple files, which contain the edits differing from the reference sequence for each sra sample.
 
 ---
 
@@ -259,11 +259,12 @@ To get metadata use two methods. Each method can return very different data depe
   python3 mycosnp-bucket-clean.py
   
   **Things to know**
-  
+
+  - Completed runs will have the .maple and the .g.vcf.gz files moved to the local ./maple folder in your working directory.
   - Reads bucket.list to determine which SRAs have a completed .maple and .g.vcf.gz and .finished and .done file.
   - Creates cleanup-mycosnp-vm.script, which processes the finished, or incomplete or failed runs.
   - Note the underlying reset.script actually determines if a vm is 'TERMINATED' or 'RUNNING'.
-  - A log will be created of what files were removed.
+  - A log will be created of what files were removed or moved to the local ./maple folder in your working directory.
   - mycosnp-bucket-clean.example explains the list of possible files in the bucket and what order they are generated and by what process. [mycosnp-bucket-clean.example](./mycosnp-bucket-clean.example)
 
   Here is an example of every type of trigger that can be contained in the cleanup-mycosnp-vm.script file that is created by this mycosnp-bucket-clean.py python program.
@@ -284,7 +285,7 @@ To get metadata use two methods. Each method can return very different data depe
   - Requeues a vm using an earlybam file from the bucket, requeues a vm using a .bam and .bai file from the bucket.
   - Requeues a vm using a .1.trimmed.fastq and .2.trimmed.fastq from the bucket.
   - Continues queuing the second half of a process vm2's if the first have of a large run is finished.
-  - Pulls files from the bucket to a local ./maple directory and cleans up old files and vms.
+  - Cleans up old files and vms when a process runs to completion.
   - Flags when a run has failed completely and needs to be requeued by the user.
   - Pulls a list of vms to a file compute_instances.list from the google cloud to check on the status as well as finding the zone.       
   - The file compute_instances.list is used for determining which vms to remove and how define the components of the remove command.
@@ -323,7 +324,7 @@ Invoked in the cleanup-mycosnp-vm.script
   - Requeues a vm using an earlybam file from the bucket, requeues a vm using a .bam and .bai file from the bucket.
   - Requeues a vm using a .1.trimmed.fastq and .2.trimmed.fastq from the bucket.
   - Continues queuing the second half of a process vm2's if the first have of a large run is finished.
-  - Pulls files from the bucket to a local ./maple directory and cleans up old files and vms.
+  - Cleans up old files and vms when a process runs to completion.
   - Flags when a run has failed completely and needs to be requeued by the user.
   - Pulls a list of vms to a file compute_instances.list from the google cloud to check on the status as well as finding the zone.
   - The file compute_instances.list is used for determining which vms to remove and how define the components of the remove command.
