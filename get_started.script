@@ -21,30 +21,14 @@ REPOS=(
     "https://github.com/tleppertbio/mycosnp-bucket-clean"        
     "https://github.com/tleppertbio/cleanup-mycosnp-vm"
 )
-#
-# Create the target directory if it doesn't exist
-if [ ! -d "$TARGET_DIR" ]; then
-    mkdir -p "$TARGET_DIR"
-    echo "Directory $TARGET_DIR created."
-else
-    echo "Directory $TARGET_DIR already exists."
-    while true; do
-        read -p  "Do you want to reload it? (y/n): " yn
-        case $yn in
-            [Yy]* ) echo "Proceeding..."; echo "directory $TARGET_DIR created";  break;;  # Handle 'y' or 'Y', then break the loop
-            [Nn]* ) echo "Exiting..."; exit;;      # Handle 'n' or 'N', then exit the script
-            * ) echo "Invalid response, please answer yes or no.";; # Handle all other inputs
-        esac
-    done
-fi
-#
 # Loop through the repositories and clone them
 for repo_url in "${REPOS[@]}"; do
     echo "Cloning $repo_url into $TARGET_DIR..."
     git clone "$repo_url"
 done
 #
-echo "If you are not on a mac, you must redo these sed commands in the get_started.script file."
+echo "If you are not on a mac, you must redo these sed command errors in the get_started.script file."
+echo "If you are on a mac, you should not get any sed command errors."
 sed "s/c-auris-cdc/$PROJECT_ID/g" make_mycosnp_script/make_mycosnp_script.py > make_mycosnp_script.py
 sed -i '' "s/test-154312-data-bucket/$BUCKET_NAME/g" make_mycosnp_script.py
 sed -i '' "s/us-west1/$GOOGLE_REGION/g" make_mycosnp_script.py
