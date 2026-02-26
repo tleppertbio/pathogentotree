@@ -44,7 +44,6 @@ for repo_url in "${REPOS[@]}"; do
     git clone "$repo_url"
 done
 #
-cd $TARGET_DIR
 sed "s/c-auris-cdc/$PROJECT_ID/g" make_mycosnp_script/make_mycosnp_script.py > make_mycosnp_script.py
 sed -i "s/test-154312-data-bucket/$BUCKET_NAME/g" make_mycosnp_script.py
 sed -i "s/us-west1/$GOOGLE_REGION/g" make_mycosnp_script.py
