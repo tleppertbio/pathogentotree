@@ -13,8 +13,7 @@ In another window, run the following commands
 - chmod 775 ./get_started.script&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#make the get_started.script executable
 - ./get_started.script&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#downloads all repos from github, initializes scripts using project_id, bucket, google region
 - ./tutorial-setup.script&nbsp;&nbsp;&nbsp;#initializes sra_now.list, ref-bucket-setup.script
-- ./ref-bucket-setup.script&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#put reference files in your bucket
-- python3 ./make_mycosnp_script.py&nbsp;&nbsp;&nbsp;&nbsp;#create vm scripts
+- ./ref-bucket-setup.script&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#put reference files in your bucket
 - python3 ./invoke_mycosnp_script.py&nbsp;&nbsp;#create invoke scripts
 - cd vm-scripts&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#change to the vm-scripts folder
 - ./execute-vm-size-date-time.script&nbsp;&nbsp;#invoke the vms
