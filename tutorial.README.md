@@ -14,7 +14,7 @@ In another window, run the following commands
 - ./get_started.script&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#downloads all repos from github, initializes scripts using project_id, bucket, google region
 - ./tutorial-setup.script&nbsp;&nbsp;&nbsp;#initializes sra_now.list, ref-bucket-setup.script
 - ./ref-bucket-setup.script&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#put reference files in your bucket
-- python3 ./invoke_mycosnp_script.py&nbsp;&nbsp;#create invoke scripts
+- python3 ./invoke_mycosnp_script.py&nbsp;&nbsp;#create invoke scripts, answer 0,1,0,0,0,0
 - cd vm-scripts&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#change to the vm-scripts folder
 - ./execute-vm-size-date-time.script&nbsp;&nbsp;#invoke the vms
 - cd ../&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#go back to the original folder
