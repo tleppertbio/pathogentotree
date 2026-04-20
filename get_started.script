@@ -13,6 +13,13 @@ read BUCKET_NAME
 # Define the google region you are working in.
 echo "Enter the google region that you are working in: e.g. us-west1 :"
 read GOOGLE_REGION
+# 
+# Define the directory path to the prepared reference files. 
+echo "The following files should be in your reference folder: reference.cluster,reference.coords,reference.delta,reference.dict,reference.fa, reference.fasta, reference.fasta.fai" 
+echo "There should also be a sub-folder: bwa/reference.amb,bwa/reference.ann,bwa/reference.bwt,bwa/reference.pac,bwa/reference.sa" 
+echo "Please read reference.README.md in the pathogentotree/documentation folder for how to create these files" 
+echo "Enter the directory path to the prepared reference files." 
+read REFERENCE_PATH
 #
 # Define the list of repository URLs
 REPOS=(
@@ -31,6 +38,7 @@ echo ""
 echo "If you are not on a mac, you must redo these sed command errors in the get_started.script file."
 echo "If you are on a mac, you should not get any sed command errors."
 echo ""
+sed -i "s/\/Users\/tleppert\/Desktop\/candidas\/reference\/new_reference/$REFERENCE_PATH/g" ref-bucket-setup.script
 sed "s/c-auris-cdc/$PROJECT_ID/g" make_mycosnp_script/make_mycosnp_script.py > make_mycosnp_script.py
 sed -i '' "s/test-154312-data-bucket/$BUCKET_NAME/g" make_mycosnp_script.py
 sed -i '' "s/us-west1/$GOOGLE_REGION/g" make_mycosnp_script.py
