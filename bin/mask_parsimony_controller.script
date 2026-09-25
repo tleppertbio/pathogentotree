@@ -1,0 +1,80 @@
+#!/bin/bash
+#
+# ./allchrom is created by paste_maples.py.
+# ../mask_files should be download from the pathogentotree github.
+# You may wish to change the .bed files in ../mask_files directory.
+#
+# This script determines that the folders exist and there are .bed files to use.
+# This script is called from master_vm.script
+# This script runs ../bin/mask_maples.py which masks the files in the list allchrom_nhin.list from allchrom/*.maple
+# masks the files in the allchrom_nhin.list using the .bed files in $mask_bed_files and deposits the masked
+# files in $mask_chrom_dir
+#
+WORKING_DIR=""
+BIN_DIR=""
+usage() {
+    echo "Usage: $0 [-v|--verbose] [-w|--working working_dir] [-b|--bin bin_folder]"
+    exit 1
+}
+# Loop through all arguments until none are left
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -v|--verbose)
+            VERBOSE=true
+            shift # Move past the flag
+            ;;
+        -w|--working)
+            if [[ -z "$2" || "$2" =~ ^- ]]; then
+                echo "Error: --working requires an string argument."
+                exit 1
+	    else 
+                WORKING_DIR="$2"
+                shift 2 # Move past the flag and its value
+            fi
+            ;;
+        -b|--bin)
+            if [[ -z "$2" || "$2" =~ ^- ]]; then
+                echo "Error: --bin requires an string argument."
+                exit 1
+	    else 
+                BIN_DIR="$2"
+                shift 2 # Move past the flag and its value
+            fi
+            ;;
+        -h|--help)
+            usage
+            ;;
+	*) # Handle unknown options or positional parameters
+            echo "Unknown option: $1"
+            usage
+            ;;
+    esac
+done 
+#		
+split_chrom_dir=${WORKING_DIR}/allchrom
+mask_files_dir=${WORKING_DIR}/../mask_files
+if [[ ! -d $split_chrom_dir ]]; then
+    echo "missing $split_chrom_dir folder, please check master_vm.script at paste_maples.py."
+fi
+if [[ ! -d $mask_files_dir ]]; then
+    echo "missing $mask_files_dir folder, please create a mask_files_dir with parsimony_mask.bed files."
+    echo "Or skip this step and comment out in master_vm.script."
+fi
+if [[ -d $mask_files_dir ]]; then
+    #mask_bed_files="../mask_files/parsimony_mask_pad500_merged.bed"
+    mask_bed_files=${mask_files_dir}/parsimony_mask.bed
+    if [[ ! -e "$mask_bed_files" ]]; then
+	#echo "missing ../mask_files/parsimony_mask_pad500_merged.bed files, please create a mask_files dir with this file."
+	echo "missing $mask_bed_files file, please create a mask_files dir with this file."	
+    fi
+fi
+if [[ -d $split_chrom_dir && -d $mask_files_dir ]]; then
+    mask_chrom_dir=${WORKING_DIR}/mask_parsimony_allchrom
+    if [[ ! -d $mask_chrom_dir ]]; then
+	mkdir -p $mask_chrom_dir
+    fi
+    ls ${WORKING_DIR}/allchrom/*.maple > allchrom_nhin.list
+    python3 ${BIN_DIR}/mask_maple.py -l allchrom_nhin.list -m $mask_bed_files -d $mask_chrom_dir
+    rm allchrom_nhin.list
+fi
+#gzip ./allchrom/*.maple

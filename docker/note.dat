@@ -1,0 +1,166 @@
+cd /storage2/tami/C.posadasii/docker
+
+docker ps -a
+docker rm id
+docker image ls
+docker rmi image_id
+
+docker run -it ashedpotatoes/sranwrp:1.1.26
+root@f2cc5eb30ffe:#
+cd /home
+mkdir -p tleppert
+mkdir -p tleppert/the_data
+mkdir -p tleppert/the_data/reference
+mkdir -p tleppert/the_data/reference/bwa 
+sudo apt-get update
+apt-get install -y openjdk-17-jdk
+sudo apt update
+sudo apt --reinstall install python3 python3-minimal
+#sudo apt --reinstall install libpython3-stdlib libpython3.12-minimal 
+#sudo apt --reinstall install $(dpkg -S '/usr/lib/python3*' | cut -d ':' -f1 | cut -d ',' -f1 | sort | uniq | tr '\n' ' ')
+
+#in another window outside of docker
+
+docker cp bin/execute-pull.sh f2cc5eb30ffe:/bin
+docker cp bin/bwa f2cc5eb30ffe:/bin
+docker cp bin/FaQCs f2cc5eb30ffe:/bin
+docker cp bin/fasterq-dump-orig.3.2.1 f2cc5eb30ffe:/bin/fasterq-dump
+docker cp bin/fix-docker-id.sh f2cc5eb30ffe:/bin
+docker cp bin/fix-id.sh f2cc5eb30ffe:/bin
+docker cp bin/picard.jar f2cc5eb30ffe:/bin
+docker cp bin/prefetch-orig.3.2.1 f2cc5eb30ffe:/bin/prefetch
+docker cp bin/samn-pull.sh f2cc5eb30ffe:/bin
+docker cp bin/seqkit f2cc5eb30ffe:/bin
+docker cp bin/srr-pull.sh f2cc5eb30ffe:/bin
+docker cp bin/gvcf_to_maple_haploid.py f2cc5eb30ffe:/bin
+docker cp bin/gatk-4.6.1.0.tar f2cc5eb30ffe:/home/tleppert
+
+#back in the docker window
+cd /home/tleppert
+tar -xvf gatk-4.6.1.0.tar
+rm gatk-4.6.1.0.tar
+
+#adjust	path
+PATH="/home/user/gatk-4.6.1.0:/usr/lib/jvm/java-17-openjdk-amd64/bin:$PATH"
+
+#back in the docker window - exit
+exit
+
+(now the image has been modified)
+docker commit f2cc5eb30ffe pathogen_tree
+sha256:77fd77f6d46c39d2006015c676f7b9a4e03006f1486fd2d6460786867e983a09
+(base) 10:12:48 SB:/storage2/tami/C.posadasii/docker$  Tuesday October 14 2025 4.64GB
+
+#docker tag local-image:tagname new-repo:tagname
+#docker push new-repo:tagname
+docker tag pathogen_tree:latest pathogentotree:latest
+docker tag pathogen_tree:latest tleppertwood/pathogentotree:latest
+docker push tleppertwood/pathogentotree:latest
+latest: digest: sha256:817254ed0a574557853395b4596186f656a62ec5940e870e04794a3415325cee size: 6637
+Docker repository 2.21GB
+
+# for a new repository go here:
+https://console.cloud.google.com/artifacts/create-repo?project=c-auris-cdc
+
+docker tag tleppertwood/cauristotree:latest us-west1-docker.pkg.dev/c-auris-cdc/cauris-repo/cauristotree
+docker tag tleppertwood/pathogentotree:latest us-west1-docker.pkg.dev/c-auris-cdc/pathogen-repo/pathogentotree
+docker push us-west1-docker.pkg.dev/c-auris-cdc/cauris-repo/cauristotree
+docker push us-west1-docker.pkg.dev/c-auris-cdc/pathogen-repo/pathogentotree
+(may need this if push fails gcloud auth configure-docker us-west1-docker.pkg.dev)
+
+
+(Now you can run your new image with the new software inside /bin)
+docker run --mount type=bind,src=/storage2/tami/C.posadasii/docker/the_data,dst=/the_data -it pathogen_tree
+
+#
+##############################################################
+#
+mkdir -p /home/tleppert/the_data
+mkdir -p /home/tleppert/the_data/reference
+mkdir -p /home/tleppert/the_data/reference/bwa
+ln -s /usr/bin/python3 /usr/bin/python
+#
+##############################################################
+#
+(once inside the docker root@dbce1cc3de94:/# )
+(type the following - you will need to have the SRR # you wish to pull)
+cd the_data
+execute-pull.sh
+   SRR32833627 
+#
+##############################################################
+# pull the reference info...
+
+gsutil cp gs://test-154312-data-bucket/reference.coords /the_data/reference
+
+fix-id.sh
+#
+##############################################################
+#
+seqkit pair -1 $SAMPLE"_1.fastq" -2 $SAMPLE"_2.fastq" --threads 2
+# creates SRR*_1.paired.fastq SRR*_2.paired.fastq
+#
+fix-id.sh
+##############################################################
+#
+FaQCs -d . -1 $SAMPLE"_1.paired.fastq" -2 $SAMPLE"_2.paired.fastq" --prefix $SAMPLE -t 2 --debug 2> $SAMPLE".fastp.log"
+#
+# creates qa.SRR*.base_content.txt, qa.SRR*.base.matrix, qa.SRR*.for_qual_histogram.txt, qa.SRR*.length_count.txt
+# creates qa.SRR*.quality.matrix, SRR*_1.trimmed.fastq, SRR*_2.trimmed.fastq
+# creates SRR*.base_content.txt, SRR*.base.matrix, SRR*.fastp.log, SRR*.for_qual_histogram.txt,
+# creates SRR*.length_count.txt, SRR*.quality.matrix, SRR*.stats.txt, SRR*.unpaired.trimmed.fastq
+rm *.txt
+rm *.matrix
+rm *.log
+rm *.unpaired.trimmed.fastq
+#
+fix-id.sh
+##############################################################
+#
+bwa mem -t 2 reference/bwa/reference $SAMPLE".1.trimmed.fastq" $SAMPLE".2.trimmed.fastq" | samtools sort --threads 2 -o $SAMPLE".bam"
+# creates SRR*.bam
+#
+fix-id.sh
+##############################################################
+#
+java -jar /bin/picard.jar MarkDuplicates REMOVE_DUPLICATES=true ASSUME_SORT_ORDER=coordinate VALIDATION_STRINGENCY=LENIENT I=$SAMPLE".bam" O=$SAMPLE"_markdups.bam" M=$SAMPLE"_markdups.MarkDuplicates.metrics.txt"
+# creates SRR*_markdups.bam SRR*_markdups.MarkDuplicates.metrics.txt
+rm *.txt
+#
+fix-id.sh
+##############################################################
+#
+java -jar /bin/picard.jar CleanSam -I $SAMPLE"_markdups.bam" -O $SAMPLE"_clean.bam"
+# creates SRR*_clean.bam
+#
+fix-id.sh
+##############################################################
+#
+java -jar /bin/picard.jar FixMateInformation -I $SAMPLE"_clean.bam" -O $SAMPLE"_fixmate.bam" --VALIDATION_STRINGENCY LENIENT
+# creates SRR*_fixmate.bam
+#
+fix-id.sh
+##############################################################
+#
+mkdir replace
+fix-id.sh
+cd replace
+java -jar /bin/picard.jar AddOrReplaceReadGroups --INPUT ../$SAMPLE"_fixmate.bam" --OUTPUT $SAMPLE".bam" -ID id -LB library -PL illumina -PU barcode -SM $SAMPLE -CREATE_INDEX true
+# creates SRR*.bam, SRR*.bai
+#
+fix-id.sh
+##############################################################
+#
+gatk --java-options "-Xms6G -Xmx6G" HaplotypeCaller -R reference/reference.fasta -I $SAMPLE".bam" -O $SAMPLE".g.vcf.gz" -ERC GVCF --sample-ploidy "1"
+# creates SRR*.g.vcf.gz SRR*.g.vcf.gz.tbi
+#
+fix-id.sh
+##############################################################
+#
+/bin/python3 ~/bin/gvcf_to_maple_haploid.py $SAMPLE".g.vcf.gz" > $SAMPLE".maple"
+# creates SRR*.maple
+#
+fix-id.sh
+##############################################################
+##############################################################
+

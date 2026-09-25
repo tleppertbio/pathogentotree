@@ -1,0 +1,496 @@
+#!/bin/bash
+# 4/29/26
+# v1.0
+# 5/2/26
+# v2.0 - don't worry about timing cleanup. invoke_vm.script takes as long as it takes. 30 minute breather between
+# 8/12/26
+# v3.0 - final touch up for other users automated
+#
+# Program master_vm.script is called from sra-setup.script
+# This program runs many sub pythons and scripts.
+# Main haulers are invoke_mycosnp_script.py and mycosnp-bucket-clean.py
+# These two programs are run on this schedule to minimize billing.
+#     Every evening invoke once between 5:30pm and 8:30pm
+#     Saturday and Sunday mornings invoke once between 5:30am and 7:30am
+#
+# Runs and possibly re-run samples until all are finished.
+# Loop until all samples have been run or marked as obstinant.
+#
+# python3 invoke_mycosnp_script.py   #create invoke scripts like ./execute-vm-xlow-2026-04-20.16.09.script
+# invoke_vm.script                   #executes invoke scripts and moves them to vm-scripts/done
+# python3 mycosnp-bucket-clean.py    #reads/cleans bucket.list, vm compute_instances.list
+#                                    #creates cleanup-mycosnp-vm.script
+# cleanup-mycosnp-vm.script          #cleans bucket and gc vm processes, vm-running/*, mv executed vm-scripts/done
+#
+# invoke_mycosnp_script.py
+# invokes up to 400 xlow; 300 low; 200 medium; 50 large; 5 xlarge; 2 xxlarge vms during scheduling times.
+#
+
+#####################################################################################################
+#  Subroutine find_length_of_run Find time length of runs to completion
+#####################################################################################################
+find_length_of_run() {
+    xlow=0
+    low=0
+    medium=0
+    large=0
+    xlarge=0
+    xxlarge=0
+    files=(./vm-scripts/*.script)   # create an array of files
+    for f in "${files[@]}"; do
+	#echo "$f filename"
+	root=$(echo "$f" | cut -d'/' -f3 | cut -d'-' -f1)
+	size=$(grep $root sra_now.list | cut -f 1)
+	if [[ "$size" -lt 1000000000 ]]; then
+            ((xlow+=1))
+	elif [[ "$size" -lt 2000000000 ]]; then
+            ((low+=1))
+	elif [[ "$size" -lt 4000000000 ]]; then
+            ((medium+=1))
+	elif [[ "$size" -lt 10000000000 ]]; then
+            ((large+=1))
+	elif [[ "$size" -lt 15000000000 ]]; then
+            ((xlarge+=1))
+	else
+	    ((xxlarge+=1))
+	fi
+    done
+    total=$((xlow+low+medium+large+xlarge+xxlarge))
+    days[0]=$((xlow / 400))
+    remainder=$((xlow % 400))
+    if [[ $remainder -gt 0 ]]; then
+	days[0]=$((days[0] + 1))
+    fi
+    days[1]=$((low / 300))
+    remainder=$((low % 300))
+    if [[ $remainder -gt 0 ]]; then
+	days[1]=$((days[1] + 1))
+    fi
+    days[2]=$((medium / 200))
+    remainder=$((medium % 200))
+    if [[ $remainder -gt 0 ]]; then
+	days[2]=$((days[2] + 1))
+    fi
+    days[3]=$((large / 50)) 
+    remainder=$((large % 50))
+    if [[ $remainder -gt 0 ]]; then
+	days[3]=$((days[3] + 1))
+    fi
+    days[4]=$((xlarge / 5))
+    remainder=$((xlarge % 5))
+    if [[ $remainder -gt 0 ]]; then
+	days[4]=$((days[4] + 1))
+    fi
+    days[5]=$((xxlarge / 2))
+    remainder=$((xxlarge % 2))
+    if [[ $remainder -gt 0 ]]; then
+	days[5]=$((days[5] + 1))
+    fi
+    max=0
+    for n in "${days[@]}"; do
+	if (( n > max )); then
+        max=$n
+	fi
+    done
+}
+#####################################################################################################
+#  End of Subroutine find_length_of_run Find time length of runs to completion
+#####################################################################################################
+
+#####################################################################################################
+#  Read in variables from command line
+#####################################################################################################
+#
+# Initialize variables with default values
+VERBOSE=false
+PROJECT_ID=""
+BUCKET_NAME=""
+GOOGLE_REGION=""
+SERVICE_ACCOUNT=""
+BIN_DIR=""
+PATHOGEN_IMAGE=""
+
+usage() {
+    echo "Usage: $0 [-v|--verbose] [-p|--project project_name] [-b|--bucket bucket_name] [-r|--region google_region] [-d|--previous_dir previous_directory] [-s|--service_account service_account] [-e|--bin_dir bin_dir] [-i|--pathogen_image pathogen_image]"
+    exit 1
+}
+
+# Loop through all arguments until none are left
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -v|--verbose)
+            VERBOSE=true
+            shift # Move past the flag
+            ;;
+        -p|--project)
+	    if [[ -z "$2" || "$2" =~ ^- ]]; then
+ 		echo "Error: --project requires an string argument."
+ 		exit 1
+ 	    else
+		PROJECT_ID="$2"
+		shift 2 # Move past the flag and its value
+	    fi
+            ;;
+        -b|--bucket)
+	    if [[ -z "$2" || "$2" =~ ^- ]]; then
+ 		echo "Error: --bucket requires an string argument."
+ 		exit 1
+ 	    else
+		BUCKET_NAME="$2"
+		shift 2 # Move past the flag and its value
+	    fi
+            ;;
+        -r|--region)
+	    if [[ -z "$2" || "$2" =~ ^- ]]; then
+ 		echo "Error: --region requires an string argument."
+ 		exit 1
+ 	    else
+		GOOGLE_REGION="$2"
+		shift 2 # Move past the flag and its value
+	    fi
+            ;;
+        -d|--previous_dir)
+	    if [[ -z "$2" || "$2" =~ ^- ]]; then
+ 		echo "Error: --previous_dir requires an string argument."
+ 		exit 1
+ 	    else
+		PREVIOUS_DIR="$2"
+		shift 2 # Move past the flag and its value
+	    fi
+            ;;
+        -s|--service_account)
+	    if [[ -z "$2" || "$2" =~ ^- ]]; then
+ 		echo "Error: --service_account requires an string argument."
+ 		exit 1
+ 	    else
+		SERVICE_ACCOUNT="$2"
+		shift 2 # Move past the flag and its value
+	    fi
+            ;;
+        -e|--bin_dir)
+	    if [[ -z "$2" || "$2" =~ ^- ]]; then
+ 		echo "Error: --bin_dir requires an string argument."
+ 		exit 1
+ 	    else
+		BIN_DIR="$2"
+		shift 2 # Move past the flag and its value
+	    fi
+            ;;
+        -i|--pathogen_image)
+	    if [[ -z "$2" || "$2" =~ ^- ]]; then
+ 		echo "Error: --pathogen_image requires an string argument."
+ 		exit 1
+ 	    else
+		PATHOGEN_IMAGE="$2"
+		shift 2 # Move past the flag and its value
+	    fi
+            ;;
+        -h|--help)
+            usage
+            ;;
+        *) # Handle unknown options or positional parameters
+            echo "Unknown option: $1"
+            usage
+            ;;
+    esac
+done
+
+#####################################################################################################
+#  End of Read in variables from command line
+#####################################################################################################
+
+
+current_dir=$(pwd)           # Current directory
+shopt -s nullglob            # expand vm_scripts_files to nothing if empty
+
+am_not_done_yet=1            # The am run needs to run (if the time is right)
+pm_not_done_yet=1            # The pm run needs to run (if the time is right)
+running_vms=-1               # No vms running yet
+
+current_date=$(date +"%Y-%m-%d-%H-%M")   # Use the format without the ':', the 10# drops the leading 0
+
+# While there are *startup*.script files in /vm-scripts
+while true; do
+    vm_scripts_files=($(pwd)/vm-scripts/*startup*.script)
+    scripts_pending=${#vm_scripts_files[@]}
+
+    running_vms=$(gcloud compute instances list --filter="name~'.*-pathogen-vm' AND status=RUNNING" --format="value(name)" --project="${PROJECT_ID}" 2>/dev/null | wc -l)
+
+    if [[ "$scripts_pending" -gt 0 && "$running_vms" -eq 0 ]]; then
+	echo "Scripts pending: $scripts_pending VMs not yet running: $running_vms" >> "${current_dir}/master_vm-${current_date}.log" 2>&1
+	echo "Scripts pending: $scripts_pending VMs not yet running: $running_vms"	
+    elif [[ "$scripts_pending" -gt 0 && "$running_vms" -gt 0 ]]; then    
+	echo "Scripts pending: $scripts_pending VMs still running: $running_vms" >> "${current_dir}/master_vm-${current_date}.log" 2>&1
+	echo "Scripts pending: $scripts_pending VMs still running: $running_vms"
+    elif [[ "$scripts_pending" -eq 0 && "$running_vms" -gt 0 ]]; then
+	echo "All scripts queued.  Waiting for $running_vms VM(s) to finish....." >> "${current_dir}/master_vm-${current_date}.log" 2>&1
+	echo "All scripts queued.  Waiting for $running_vms VM(s) to finish....."
+    elif [[ "$scripts_pending" -eq 0 && "$running_vms" -eq 0 ]]; then
+	echo "All scripts process and all VMs finished.  Starting post-processing." >> "${current_dir}/master_vm-${current_date}.log" 2>&1
+	echo "All scripts process and all VMs finished.  Starting post-processing."
+	python3 ${BIN_DIR}/mycosnp-bucket-clean.py ${PROJECT_ID} ${BUCKET_NAME} ${GOOGLE_REGION} ${SERVICE_ACCOUNT} ${BIN_DIR} ${PATHOGEN_IMAGE} >> ${current_dir}/master_vm-${current_date}.log 2>&1
+	echo "sleep for 2 minutes at $current_date $current_hour after invoke_mycosnp_script.py" >> ${current_dir}/master_vm-${current_date}.log 2>&1
+	echo "sleep for 2 minutes at $current_date $current_hour after invoke_mycosnp_script.py"
+	sleep 2m
+        ${BIN_DIR}/invoke_vm.script >> ${current_dir}/master_vm-${current_date}.log 2>&1
+	vm_scripts_files=($(pwd)/vm-scripts/*startup*.script)
+	scripts_pending=${#vm_scripts_files[@]}
+	running_vms=$(gcloud compute instances list --filter="name~'.*-pathogen-vm' AND status=RUNNING" --format="value(name)" --project="${PROJECT_ID}" 2>/dev/null | wc -l)
+	# last chance finish cleaning, last run actually ran and was not re-queued
+	if [[ "$scripts_pending" -eq 0 && "$running_vms" -eq 0 ]]; then	
+	    break  # only exit when both are zero
+	fi
+    fi
+    
+    # Get current hour in 24-hour format (00-23)
+    last_mins=$(( 10#$(date +"%H") * 60 + 10#$(date +"%M") ))    
+    current_hour=$((10#$(date +"%H%M")))   # Use the format without the ':', the 10# drops the leading 0
+    current_day=$(date +%u)        # Monday is 1, Sat = 7, Sun = 8
+
+    find_length_of_run
+
+    echo
+    echo "The number of days to run these samples is $max" >> ${current_dir}/master_vm-${current_date}.log 2>&1        
+    echo "The number of days to run these samples is $max"
+    echo
+    echo "The number of xlow samples in ./vm-scripts is $xlow" >> ${current_dir}/master_vm-${current_date}.log 2>&1   
+    echo "The number of xlow samples in ./vm-scripts is $xlow"
+    echo "The number of low samples in ./vm-scripts is $low" >> ${current_dir}/master_vm-${current_date}.log 2>&1 
+    echo "The number of low samples in ./vm-scripts is $low"
+    echo "The number of medium samples in ./vm-scripts is $medium" >> ${current_dir}/master_vm-${current_date}.log 2>&1 
+    echo "The number of medium samples in ./vm-scripts is $medium"
+    echo "The number of large samples in ./vm-scripts is $large" >> ${current_dir}/master_vm-${current_date}.log 2>&1 
+    echo "The number of large samples in ./vm-scripts is $large"
+    echo "The number of xlarge samples in ./vm-scripts is $xlarge" >> ${current_dir}/master_vm-${current_date}.log 2>&1
+    echo "The number of xlarge samples in ./vm-scripts is $xlarge"
+    echo "The number of xxlarge samples in ./vm-scripts is $xxlarge" >> ${current_dir}/master_vm-${current_date}.log 2>&1
+    echo "The number of xxlarge samples in ./vm-scripts is $xxlarge"
+    echo
+    echo "The total number of samples in ./vm-scripts is $total" >> ${current_dir}/master_vm-${current_date}.log 2>&1 
+    echo "The total number of samples in ./vm-scripts is $total"
+    echo
+
+    # Every evening between 5:30pm and 8:30 pm, invoke once.  (do not interfere with this range <=5pm && >=9pm )
+    if [[ $current_hour -ge 1730 && $current_hour -le 2030 && $pm_not_done_yet -eq 1 ]]; then
+	pm_not_done_yet=0
+	python3 ${BIN_DIR}/invoke_mycosnp_script.py 400 300 200 50 5 2 ${PROJECT_ID} ${GOOGLE_REGION} ${PATHOGEN_IMAGE} ${SERVICE_ACCOUNT} >> ${current_dir}/master_vm-${current_date}.log 2>&1
+	echo "sleep for 2 minutes at $current_date $current_hour after invoke_mycosnp_script.py" >> ${current_dir}/master_vm-${current_date}.log 2>&1
+	echo "sleep for 2 minutes at $current_date $current_hour after invoke_mycosnp_script.py"
+	sleep 2m
+        ${BIN_DIR}/invoke_vm.script >> ${current_dir}/master_vm-${current_date}.log 2>&1
+    fi
+    # If Saturday or Sunday, invoke once between 5:30am and 7:30am - (don't interfere with the range <=5am && >=8am )
+    if [[ "$current_day" -gt "5" ]]; then
+	if [[ $current_hour -ge 530 && $current_hour -le 730 && $am_not_done_yet ]]; then
+	    am_not_done_yet=0
+	    python3 ${BIN_DIR}/invoke_mycosnp_script.py 400 300 200 50 5 2 ${PROJECT_ID} ${GOOGLE_REGION} ${PATHOGEN_IMAGE} ${SERVICE_ACCOUNT} >> ${current_dir}/master_vm-${current_date}.log 2>&1
+	    echo "sleep for 2 minutes at $current_date $current_hour after invoke_mycosnp_script.py on weekend" >> ${current_dir}/master_vm-${current_date}.log 2>&1
+	    echo "sleep for 2 minutes at $current_date $current_hour after invoke_mycosnp_script.py on weekend"
+	    sleep 2m
+            ${BIN_DIR}/invoke_vm.script >> ${current_dir}/master_vm-${current_date}.log 2>&1
+	fi
+    fi
+
+    # Get current hour in 24-hour format (00-23)
+    current_hour=$((10#$(date +"%H%M")))   # Use the format without the ':', the 10# drops the leading 0
+    current_day=$(date +%u)        # Monday is 1, Sat = 6, Sun = 7
+    
+    python3 ${BIN_DIR}/mycosnp-bucket-clean.py ${PROJECT_ID} ${BUCKET_NAME} ${GOOGLE_REGION} ${SERVICE_ACCOUNT} ${BIN_DIR} ${PATHOGEN_IMAGE} >> ${current_dir}/master_vm-${current_date}.log 2>&1
+    cat ${current_dir}/bucket.list >> ${current_dir}/master_vm-${current_date}.log 2>&1
+    cat ${current_dir}/compute_instances.list >> ${current_dir}/master_vm-${current_date}.log 2>&1
+    echo "sleep for 2 minutes at $current_date $current_hour after mycosnp-bucket-clean.py" ${PROJECT_ID} ${BUCKET_NAME} ${GOOGLE_REGION}  >> ${current_dir}/master_vm-${current_date}.log 2>&1
+    echo "sleep for 2 minutes at $current_date $current_hour after mycosnp-bucket-clean.py"
+    sleep 2m
+    ./cleanup-mycosnp-vm.script >> ${current_dir}/master_vm-${current_date}.log 2>&1
+
+    # Get current hour in 24-hour format (00-23)
+    current_mins=$(( 10#$(date +"%H") * 60 + 10#$(date +"%M") ))
+    current_hour=$((10#$(date +"%H%M")))   # Use the format without the ':', the 10# drops the leading 0
+    current_day=$(date +%u)        # Monday is 1, Sat = 6, Sun = 7
+    
+    # Reset am_not_done_yet after 12noon, will remain set until 5:30-7:30am
+    if [[ $current_hour -ge 1200 ]]; then
+	am_not_done_yet=1
+    fi
+    # Reset pm_not_done_yet after 9pm, will remain set until 5:30pm-8:30 
+    if [[ $current_hour -ge 2100 ]]; then
+	pm_not_done_yet=1
+    fi
+
+    # Wait for 30 minutes before the next iteration, unless it's been more than 30 minutes since the start of this loop.
+    diff=$(( (current_mins - last_mins + 1440) % 1440 ))  # handles midnight wrap    
+    if (( diff < 30 )); then    # e.g. 1440 is 24 hours.
+	echo "sleeping for 30 minutes at $current_date $current_hour" >> ${current_dir}/master_vm-${current_date}.log 2>&1
+	echo "sleeping for 30 minutes at $current_date $current_hour"
+	sleep 30m
+    else
+	echo "skip sleeping for 30 minutes at $current_date $current_hour" >> ${current_dir}/master_vm-${current_date}.log 2>&1
+	echo "skip sleeping for 30 minutes at $current_date $current_hour"
+    fi
+    
+done  # While true.
+
+#*******************************************************************
+#  End of queuing vm-scripts in gclouds
+#*******************************************************************
+
+
+#*******************************************************************
+#  Finding samples that did not run
+#*******************************************************************
+
+echo "Finished project runs, cleaning bucket and any stray vms." >> ${current_dir}/master_vm-${current_date}.log 2>&1
+echo "Finished project runs, cleaning bucket and any stray vms."
+${BIN_DIR}/finish-project-clean.script -b ${BUCKET_NAME} >> ${current_dir}/master_vm-${current_date}.log 2>&1
+echo
+do_not_run_list="do_not_run.list"     # Comes from results of runs- real time. added by reset.script
+if [[ -f "${do_not_run_list}" ]]; then 
+    n_do_not_run=$(wc -l < "$do_not_run_list")
+    echo "$n_do_not_run samples listed in '$do_not_run_list' should be reported to ncbi.  These files were mislabeled as paired end reads, they were not." >> ${current_dir}/master_vm-${current_date}.log 2>&1
+    echo "Please email nlm-support@nlm.nih.gov using the form https://support.nlm.nih.gov/support/create-case/ and send them the file." >> ${current_dir}/master_vm-${current_date}.log 2>&1
+    echo "$n_do_not_run samples listed in '$do_not_run_list' should be reported to ncbi.  These files were mislabeled as paired end reads, they were not."
+    echo "Please email nlm-support@nlm.nih.gov using the form https://support.nlm.nih.gov/support/create-case/ and send them the file. do_not_run.list"
+else
+    n_do_not_run=0
+fi
+
+#*******************************************************************
+#  End of finding samples that did not run
+#*******************************************************************
+
+#*********************************************************************
+#  Move samples with data that did not qualify to disqualified_maples
+#*********************************************************************
+echo "running count_maple_guts $current_date $current_hour after vm-script folder is empty of scripts." >> ${current_dir}/master_vm-${current_date}.log 2>&1
+echo "running count_maple_guts $current_date $current_hour after vm-script folder is empty of scripts."
+
+# Creates tabulated_bases_from_maple.dat, read from maple files in ./maple dir
+python3 ${BIN_DIR}/count_maple_guts.py >> ${current_dir}/master_vm-${current_date}.log 2>&1
+
+# tabulated_bases_from_maple.dat created from count_maple_guts.py
+if [[ -f $(pwd)/tabulated_bases_from_maple.dat ]]; then
+    echo "running calc_coverage.py $current_date $current_hour after count_maple_guts.py." >> ${current_dir}/master_vm-${current_date}.log 2>&1
+    echo "running calc_coverage.py $current_date $current_hour after count_maple_guts.py."
+    # Reads tabulated_bases_from_maple.dat, ../reference/reference.fa.fai for chromosome sizes, Writes calculated_ratios.dat
+    python3 ${BIN_DIR}/calc_coverage.py >> ${current_dir}/master_vm-${current_date}.log 2>&1
+fi
+
+if [[ -f $(pwd)/calculated_ratios.dat ]]; then
+    # Reads calculated_ratios.dat, creates disqualified_n.list
+    # Finds,Move disqualified maples and .g.vcf.gz files to folder ./disqualified_maples
+    if [[ ! -d "$(pwd)/disqualified_maples" ]]; then
+	mkdir $(pwd)/disqualified_maples
+    fi
+    ${BIN_DIR}/disqualified_maples.script >> ${current_dir}/master_vm-${current_date}.log 2>&1
+
+    n_good_maples=$(ls -l $current_dir/maple/*.maple | wc -l)
+    disqualified_list="disqualified_n.list"    
+    n_disqualified=$(wc -l < "$disqualified_list")
+    n_processed=$(echo "($n_good_maples + $n_disqualified)" | bc)
+    percent_disqualified=$(echo "scale=4; ($n_disqualified / $n_processed) * 100.00" | bc)
+    echo "n_disqualified $n_disqualified; n_processed $n_processed; n_good_maples $n_good_maples; precent_disqualified $percent_disqualified after tabulation." >> ${current_dir}/master_vm-${current_date}.log 2>&1
+    echo "n_disqualified $n_disqualified; n_processed $n_processed; n_good_maples $n_good_maples; precent_disqualified $percent_disqualified after tabulation."
+fi
+
+#*********************************************************************
+#  Moved samples with data that did not qualify to disqualified_maples
+#*********************************************************************
+
+#*********************************************************************
+#  Check disk space for masking maple files
+#*********************************************************************
+
+# Check disk space
+maple_kb=$(du -sk ./maple | cut -f1)
+echo "maple_kb $maple_kb" >> ${current_dir}/master_vm-${current_date}.log 2>&1
+echo "maple_kb $maple_kb"
+
+disk_kb=$(df -Pk . | awk 'NR==2 {print $4}')
+echo "disk_kb $disk_kb" >> ${current_dir}/master_vm-${current_date}.log 2>&1
+echo "disk_kb $disk_kb"
+int_maple_disk_size=$(echo "$maple_kb") #xargs removes whitespace, assuming only leading trailing here
+int_disk_available=$(echo "$disk_kb")   #xargs removes whitespace, assuming only leading trailing here
+
+## The maples are .2 of the total size of the maple directory, so we need 3.5x of them == 0.7 more disk space
+triple_needed=$(echo "(($int_maple_disk_size * 7)/10)" | bc)
+if [[ $int_disk_available -gt $triple_needed ]]; then
+    echo "You have enough disk space to continue" >> ${current_dir}/master_vm-${current_date}.log 2>&1
+    echo "You have enough disk space to continue"
+else
+    echo "You do not have enough disk space to continue" >> ${current_dir}/master_vm-${current_date}.log 2>&1
+    echo "Please make enough disk space to continue. At least 2x $maple_disk_size should be free." >> ${current_dir}/master_vm-${current_date}.log 2>&1
+    echo "Rerun master_vm.script when you have enough disk space to continue." >> ${current_dir}/master_vm-${current_date}.log 2>&1
+    echo "You do not have enough disk space to continue"
+    echo "Please make enough disk space to continue. At least 2x $maple_disk_size should be free."
+    echo "Rerun master_vm.script when you have enough disk space to continue."        
+    exit
+fi
+
+#*********************************************************************
+#  Checked disk space for masking maple files
+#*********************************************************************
+
+#*********************************************************************
+#  Split maple files into chromosomes
+#*********************************************************************
+
+# Reads indexes_to_split.dat creates, runs, then deletes indexes_to_split.script, split chroms are stored in /split_chrom
+${BIN_DIR}/split_maples_by_chrom.script -w ${current_dir} -b ${BIN_DIR} 
+
+# Gzip qualified maple files to save space
+gzip $current_dir/maple/*.maple
+# Gzip disqualified maple files to save space
+if [[ -d "$current_dir/disqualified_maples" ]]; then
+    if [[ -f "$current_dir/disqualified_maples/*.maple" ]]; then   
+	gzip $current_dir/disqualified_maples/*.maple
+    fi
+fi
+
+#*********************************************************************
+#  maple files have been split into chromosomes
+#*********************************************************************
+
+#*********************************************************************
+#  use ../mask_files/fasTAN_1.bed etc for masking
+#*********************************************************************
+
+# Mask files - by chromosome, and gzip ./split_chrom/*.maple's
+if [[ -d "$current_dir/../mask_files" && -d "$current_dir/split_chrom" ]]; then
+    ${BIN_DIR}/mask_controller.script -w ${current_dir} -b ${BIN_DIR} 
+fi
+
+#*********************************************************************
+#  end use mask_files/fasTAN_1.bed etc for masking
+#*********************************************************************
+
+#********************************************************************************
+#  pull high n removed, masked, separated maple files together, indexed uniformly
+#********************************************************************************
+
+# pull together chromosomes into uniformed position index into allchrom using
+# chromosome lengths from $current_dir/../reference/reference.fa.fai
+   
+python3 ${BIN_DIR}/paste_maples.py      # uses chromosome lengths
+
+#*********************************************************************
+#  use $current_dir/../mask_files/parsimony_mask_pad500_merged.bed etc for masking
+#*********************************************************************
+
+# Mask files - all chromosomes together
+if [[ -d "${current_dir}/../mask_files" && -d "${current_dir}/allchrom" ]]; then
+    ${BIN_DIR}/mask_parsimony_controller.script -w ${current_dir} -b ${BIN_DIR} 
+fi
+
+#*********************************************************************
+#  end use $current_dir/../mask_files/fasTAN_1.bed etc for masking
+#*********************************************************************
+
+#********************************************************************************** 
+#  Create batches of maple files in trees to add to previous tree                   
+#********************************************************************************** 
+ 
+${BIN_DIR}/maples_parsimony_packs.script -w ${current_dir}
+ 
+#**********************************************************************************  
+#  end Created batches of maple files in trees to add to previous tree                  
+#**********************************************************************************

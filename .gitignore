@@ -1,0 +1,58 @@
+# --- macOS / tar artifacts ---
+# These are the AppleDouble files that end up in tarballs made on a Mac
+# (e.g. bin/._master_vm.script). Never useful in a repo.
+._*
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# --- Python ---
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# --- Editor / OS cruft ---
+*~
+.vscode/
+.idea/
+*.swp
+
+# --- Vendored binaries (fetch via environment.yml / setup instead) ---
+picard.jar
+*.jar
+
+# --- Pipeline working directories & data ---
+# These are generated per-run under a project directory (e.g. 2026-08_C.auris/)
+# and should never be committed; only bin/, mask_files/, reference/, and
+# docs live in version control.
+*/metadata/
+*/maple/
+*/disqualified_maples/
+*/mask_chrom/
+*/mask_parsimony_allchrom/
+*/allchrom/
+*/split_chrom/
+*/vm-scripts*/
+*/tree/
+*.sra
+*.fastq
+*.fastq.gz
+*.g.vcf.gz
+*.maple
+*.maple.gz
+*.pb.gz
+*.log
+gcloud-err.txt
+
+# --- Credentials (never commit) ---
+*.json
+service-account*.json
+*.pem
+*.key
+
+# --- Reference build scratch ---
+# Keep the final reference.fa / .fai / mask beds; drop nucmer intermediates.
+reference.copy.fa

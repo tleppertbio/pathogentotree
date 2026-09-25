@@ -1,0 +1,75 @@
+#!/bin/bash
+shopt -s nullglob
+#
+# This script is to be used only at the end of the tree sample processing. Called from master_vm.script
+# This script pulls all mycosnp processed samples, masked and merged into larger combined files called
+# combo_all_N.maple. Each group of 50 (combine_number) samples are cat together. The analyzed samples
+# are stored in ./mask_parsimony_allchrom and are cat together and stored in /tree/combo_all_N.maple(s).
+# /tree is created if it doesn't exist.
+#
+WORKING_NAME=""
+usage() {
+    echo "Usage: $0 [-v|--verbose] [-w|--working working_dir]"
+    exit 1
+}
+#Loop through all arguments until none are left
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -v|--verbose)
+            VERBOSE=true
+            shift # Move past the flag
+            ;;
+	-w|--working)
+            if [[ -z "$2" || "$2" =~ ^- ]]; then
+                echo "Error: --working requires an string argument."
+                exit 1
+            else
+                WORKING_DIR="$2"
+                shift 2 # Move past the flag and its value
+            fi
+           ;;
+        -h|--help)
+            usage
+            ;;
+        *) # Handle unknown options or positional parameters
+            echo "Unknown option: $1"
+            usage
+            ;;
+    esac
+done
+#
+all_chrom_dir="${WORKING_DIR}/mask_parsimony_allchrom"
+combine_number=50
+#
+# Check to see the directory ./mask_parsimony_allchrom exists (is created by mask_parsimony_controller.script)
+#
+if [[ ! -d $all_chrom_dir ]]; then
+    echo "missing ${WORKING_DIR}/mask_parsimony_allchrom folder, please check master_vm.script at paste_maples.py"
+else
+    allchrom_files=(${WORKING_DIR}/mask_parsimony_allchrom/*.maple)
+    total_files=${#allchrom_files[@]}
+    if [[ $total_files -eq 0 ]]; then
+	echo "missing ${WORKING_DIR}/mask_parsimony_allchrom/*.maple files. Serious condition."
+    else
+	tree_dir="${WORKING_DIR}/tree"
+	if [[ ! -d $tree_dir ]]; then
+	    mkdir "${WORKING_DIR}/tree"
+	fi
+	
+	count_index=1
+	group_index=1
+	while [ $count_index -le $total_files ]; do
+	    maple_file="${allchrom_files[$count_index-1]}"
+	    cp $maple_file "${WORKING_DIR}/tree/combo_all.$group_index.maple"
+	    ((count_index++))	    
+	    for (( j=1; j<$combine_number; j++ )); do
+		if [[ $count_index -le $total_files ]]; then
+		    maple_file="${allchrom_files[$count_index-1]}" 
+		    cat $maple_file >> "${WORKING_DIR}/tree/combo_all.$group_index.maple"
+		fi
+		((count_index++))
+	    done
+	    ((group_index++))
+	done
+    fi
+fi

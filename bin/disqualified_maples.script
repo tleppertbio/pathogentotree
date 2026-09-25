@@ -1,0 +1,51 @@
+#!/bin/bash
+#
+# This program disqualified_maples.script is called from master_vm.script.
+# This reads in the calculated_ratios.dat and determines if any samples should be disqualified.
+# If any files are disqualified then they are moved to the disqualified_maples folder.
+# These thresholds come from an average calculation of some prior 16,000 samples.
+# If you would like to change these thresholds, you may do so here.
+#
+current_dir=$(pwd)
+disqualified_list=$current_dir/disqualified_n.list
+disqualified_dir=$current_dir/disqualified_maples
+
+echo
+echo "NOTE: the following disqualification thresholds will be used for C. auris"
+echo "0.10 ratio of N's for chromosomes 1-4 and 7, 0.20 for chromosome 5 and 0.4 for chromosome 6"
+echo "If you would like to adjust these ratios, please change them in disqualified_maples.script"
+echo
+
+if [[ -f $(pwd)/calculated_ratios.dat ]]; then
+    grep chrom=1 calculated_ratios.dat | sort -k 3 -g -t'=' | awk -F'=' '$3 >= 0.10' | cut -f 1 -d' ' > $disqualified_list
+    grep chrom=2 calculated_ratios.dat | sort -k 3 -g -t'=' | awk -F'=' '$3 >= 0.10' | cut -f 1 -d' ' >> $disqualified_list
+    grep chrom=3 calculated_ratios.dat | sort -k 3 -g -t'=' | awk -F'=' '$3 >= 0.10' | cut -f 1 -d' ' >> $disqualified_list
+    grep chrom=4 calculated_ratios.dat | sort -k 3 -g -t'=' | awk -F'=' '$3 >= 0.10' | cut -f 1 -d' ' >> $disqualified_list
+    grep chrom=5 calculated_ratios.dat | sort -k 3 -g -t'=' | awk -F'=' '$3 >= 0.20' | cut -f 1 -d' ' >> $disqualified_list
+    grep chrom=6 calculated_ratios.dat | sort -k 3 -g -t'=' | awk -F'=' '$3 >= 0.40' | cut -f 1 -d' ' >> $disqualified_list
+    grep chrom=7 calculated_ratios.dat | sort -k 3 -g -t'=' | awk -F'=' '$3 >= 0.10' | cut -f 1 -d' ' >> $disqualified_list
+    sort -u $disqualified_list > t.dat
+    mv t.dat $disqualified_list
+fi
+
+if [[ ! -d $disqualified_dir ]]; then
+    mkdir -p $disqualified_dir
+fi
+
+while IFS= read -r dline; do
+    n_slash=$(echo $dline | tr -cd '/' | wc -c)
+    filename=$(echo $dline | cut -d '/' -f $((n_slash+1)) )
+    rootname=$(echo $filename | cut -d '.' -f 1 )
+    # It's possible that this file has already been moved to $disqualified_dir
+    if [[ -f $(pwd)/maple/$rootname.maple ]]; then
+	mv $(pwd)/maple/$rootname.maple $disqualified_dir
+    fi
+    # It's possible that this file has already been moved to $disqualified_dir    
+    if [[ -f $(pwd)/maple/$rootname.maple.gz ]]; then
+	mv $(pwd)/maple/$rootname.maple.gz $disqualified_dir
+    fi    
+    # It's possible that this file has already been moved to $disqualified_dir    
+    if [[ -f $(pwd)/maple/$rootname.g.vcf.gz ]]; then	
+	mv $(pwd)/maple/$rootname.g.vcf.gz $disqualified_dir
+    fi
+done < "$disqualified_list"

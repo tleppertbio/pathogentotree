@@ -1,0 +1,5 @@
+NAME                    ZONE        MACHINE_TYPE   PREEMPTIBLE  INTERNAL_IP  EXTERNAL_IP  STATUS
+srr14590381-cauris-vm1  us-west1-a  e2-highmem-16               10.138.0.43               TERMINATED
+srr23248978-cauris-vm2  us-west1-a  e2-highmem-16               10.138.0.45               TERMINATED
+srr23248968-cauris-vm   us-west1-a  e2-highmem-8                10.138.0.47               RUNNING
+

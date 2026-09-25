@@ -1,0 +1,432 @@
+#!/bin/bash
+#
+# The reset.script is called from an intermediate script called cleanup-mycosnp-vm.script.
+# The cleanup-mycosnp-vm.script is written by mycosnp-bucket-clean.py
+# The clean up scripts are looking at vm's that have finished and files in the bucket.
+#
+# If files in the bucket indicate that the sample was processed completely, then the bucket files are
+# cleaned up and final files are moved to ./maple. Terminated vms are also removed.
+#
+# If files in the bucket indicate that the sample was processed incompletely, then the bucket files are
+# partially cleaned up and a vm is requeued using partially completed data from the bucket.
+# Terminated vms are also removed.
+# Where the sample was in the mycosnp processing determines which restart script is used.
+#
+##################################################################################################### 
+#  Read in variables from command line 
+##################################################################################################### 
+# 
+# Initialize variables with default values 
+VERBOSE=false
+PROJECT_ID=""
+BUCKET_NAME=""
+GOOGLE_REGION=""
+SERVICE_ACCOUNT=""
+PATHOGEN_IMAGE=
+
+usage() {
+    echo "Usage: $0 [-v|--verbose] [-p|--project project_name] [-b|--bucket bucket_name] [-r|--region google_region] [-a|--service_account service_account] [-t|--resettype] [-s|--SRR] [-i|--image]"
+    exit 1
+}
+
+# Loop through all arguments until none are left
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+	-v|--verbose)
+	    VERBOSE=true
+	    shift # Move past the flag
+	    ;;
+	-p|--project)
+            if [[ -z "$2" || "$2" =~ ^- ]]; then
+		echo "Error: --project requires an string argument."
+ 		exit 1
+ 	    else	    
+		PROJECT_ID="$2"
+		shift 2 # Move past the flag and its value
+	    fi
+	    ;;
+	-b|--bucket)
+            if [[ -z "$2" || "$2" =~ ^- ]]; then
+		echo "Error: --bucket requires an string argument."
+ 		exit 1
+ 	    else	    
+		BUCKET_NAME="$2"
+		shift 2 # Move past the flag and its value
+	    fi
+	    ;;
+	-r|--region)
+            if [[ -z "$2" || "$2" =~ ^- ]]; then
+		echo "Error: --region requires an string argument."
+ 		exit 1
+ 	    else	    
+		GOOGLE_REGION="$2"
+		shift 2 # Move past the flag and its value
+	    fi
+	    ;;
+	-a|--service_account)
+            if [[ -z "$2" || "$2" =~ ^- ]]; then
+		echo "Error: --service_account requires an string argument."
+ 		exit 1
+ 	    else	    
+		SERVICE_ACCOUNT="$2"
+		shift 2 # Move past the flag and its value
+	    fi
+	    ;;
+	-t|--type)
+            if [[ -z "$2" || "$2" =~ ^- ]]; then
+		echo "Error: --resettype requires an string argument."
+ 		exit 1
+ 	    else	    
+		resettype="$2"
+		shift 2 # Move past the flag and its value
+	    fi
+	    ;;
+	-s|--SRR)
+            if [[ -z "$2" || "$2" =~ ^- ]]; then
+		echo "Error: --SRR requires an string argument."
+ 		exit 1
+ 	    else	    
+		SRR="$2"
+		shift 2 # Move past the flag and its value
+	    fi
+	    ;;
+	-i|--image)
+            if [[ -z "$2" || "$2" =~ ^- ]]; then
+		echo "Error: --image requires an string argument."
+ 		exit 1
+ 	    else	    
+		PATHOGEN_IMAGE="$2"
+		shift 2 # Move past the flag and its value
+	    fi
+	    ;;
+	-h|--help)
+	    usage
+	    ;;
+	*) # Handle unknown options or positional parameters
+	    echo "Unknown option: $1"
+	    usage
+	    ;;
+    esac
+done
+
+##################################################################################################### 
+#  Done Read in variables from command line 
+##################################################################################################### 
+
+
+# Script that reads a type of reset and a sample number.
+# Given the type of reset, a different action is performed on the sample.
+#
+#if $resettype == earlybam there is a .early.bam in the bucket
+#if $resettype == finalbam there is a .bam and .bai in the bucket
+#if $resettype == trimmed there is a .1.trimmed.fastq and .2.trimmed.fastq in the bucket
+#if $resettype == vm2 there is a .bam and .bai in the bucket and the startup-vm2.script needs to be run
+#if $resettype == done run has completed, cleanup
+#if $resettype == failed run has failed completely
+#if $resettype == notpaired sample needs to be moved to the do_not_run.list
+#
+# List all files in the bucket and save to bucket file
+gsutil ls gs://$BUCKET_NAME/ > bucket.list
+#
+# Determine if sample.finished is in the bucket, remove it if found
+finishfile=$SRR".finished"
+bucketfile="./bucket.list"
+if grep -qF "$finishfile" "$bucketfile"; then
+    #Remove the .finished from the bucket
+    gsutil rm gs://$BUCKET_NAME/$SRR.finished
+fi
+#
+#Get list of vms from the cloud
+computefile="compute_instances.list"
+gcloud compute instances list > $computefile
+#
+# make SRRLOW a lowercase version of the sample number
+SRRLOW=$(echo "$SRR" | tr '[:upper:]' '[:lower:]')
+#echo "SRRLOW " $SRRLOW
+#
+#Find and remove the vm instance by determining which region/group it was queued in
+vm_a=$SRRLOW"-pathogen-vm.*"$GOOGLE_REGION"-a"
+vm_b=$SRRLOW"-pathogen-vm.*"$GOOGLE_REGION"-b"
+vm_c=$SRRLOW"-pathogen-vm.*"$GOOGLE_REGION"-c"
+#
+# if the vm instance is terminated, flag is initialized
+terminated=0
+#
+# if the second half of the process is run
+vm2_ran=0
+#
+# Find the name of the process that was queued in the compute file list
+var_a=$(sed -n "/${vm_a}/p" ${computefile})
+var_b=$(sed -n "/${vm_b}/p" ${computefile})
+var_c=$(sed -n "/${vm_c}/p" ${computefile})
+#
+# If the process was TERMINATED (or not currently running - definitely don't remove it), then remove it
+if [[ $var_a =~ "TERMINATED" ]]; then
+    if [[ $var_a =~ "vm2" ]]; then    
+        vm2_ran=1
+        gcloud compute instances delete $SRRLOW-pathogen-vm2 --zone=$GOOGLE_REGION-a --quiet
+    else
+        gcloud compute instances delete $SRRLOW-pathogen-vm --zone=$GOOGLE_REGION-a --quiet
+    fi
+elif [[ $var_b =~ "TERMINATED" ]]; then
+    if [[ $var_b =~ "vm2" ]]; then        
+        vm2_ran=1
+        gcloud compute instances delete $SRRLOW-pathogen-vm2 --zone=$GOOGLE_REGION-b --quiet
+    else
+        gcloud compute instances delete $SRRLOW-pathogen-vm --zone=$GOOGLE_REGION-b --quiet
+    fi
+elif [[ $var_c =~ "TERMINATED" ]]; then    
+    if [[ $var_c =~ "vm2" ]]; then        
+        vm2_ran=1
+        gcloud compute instances delete $SRRLOW-pathogen-vm2 --zone=$GOOGLE_REGION-c --quiet
+    else
+        gcloud compute instances delete $SRRLOW-pathogen-vm --zone=$GOOGLE_REGION-c --quiet
+    fi
+fi
+# Definitely the process is terminated now
+terminated=1
+#
+# The criteria for the vm2 to be finished has to also be met
+# If the process is not done and not all files were in the bucket, then vm2 may still need to be run
+if [[ $resettype != "done" ]]; then
+    vm2_ran=0
+fi
+#
+# Find current directory path
+current_directory=$(pwd)
+#
+#Find the current timestamp, to create a filename with current time
+TIMESTAMP=$(date +"%Y-%m-%d_%H%M%S")
+if [[ $resettype == "done" && $vm2_ran == "1" ]]; then
+    executefile="clean-${SRR}.script"
+elif [[ $resettype == "vm2" ]]; then
+    executefile="execute-vm2-${SRR}.script"
+elif [[ $resettype == "failed" ]]; then
+    executefile="failed-${SRR}-${TIMESTAMP}.script"
+else
+    executefile="execute-${SRR}-${TIMESTAMP}.script"
+fi
+#
+#The list of samples that are not paired read format
+failfile="do_not_run.list"
+#
+#Find the path + filename, find it's size and remove it, create a new startup
+#If the vm2 has run, there is a different file name, if only vm1 ran, another name, else vanilla
+if [[ $vm2_ran == "1" && $resettype == "done" ]]; then
+    if [[ -d "${current_directory}/vm-running/large" ]]; then    
+        lgfilename=$(find "${current_directory}/vm-running/large" -maxdepth 1 -name "${SRR}-s*")        
+    fi
+    if [[ -d "${current_directory}/vm-running/low" ]]; then    
+        lwfilename=$(find "${current_directory}/vm-running/low" -maxdepth 1 -name "${SRR}-s*")        
+    fi
+    if [[ -d "${current_directory}/vm-running/medium" ]]; then    
+        mdfilename=$(find "${current_directory}/vm-running/medium" -maxdepth 1 -name "${SRR}-s*")        
+    fi
+    if [[ -d "${current_directory}/vm-running/xlarge" ]]; then        
+        xlgfilename=$(find "${current_directory}/vm-running/xlarge" -maxdepth 1 -name "${SRR}-s*")        
+    fi
+    if [[ -d "${current_directory}/vm-running/xlow" ]]; then        
+        xlwfilename=$(find "${current_directory}/vm-running/xlow" -maxdepth 1 -name "${SRR}-s*")        
+    fi
+    if [[ -d "${current_directory}/vm-running/xxlarge" ]]; then        
+        xxlfilename=$(find "${current_directory}/vm-running/xxlarge" -maxdepth 1 -name "${SRR}-s*")        
+    fi
+elif [[ $resettype == "vm2" ]]; then
+    if [[ -d "${current_directory}/vm-running/large" ]]; then        
+        lgfilename=$(find "${current_directory}/vm-running/large" -maxdepth 1 -name "${SRR}-s*")    
+    fi
+    if [[ -d "${current_directory}/vm-running/low" ]]; then        
+        lwfilename=$(find "${current_directory}/vm-running/low" -maxdepth 1 -name "${SRR}-s*")    
+    fi
+    if [[ -d "${current_directory}/vm-running/medium" ]]; then        
+        mdfilename=$(find "${current_directory}/vm-running/medium" -maxdepth 1 -name "${SRR}-s*")    
+    fi
+    if [[ -d "${current_directory}/vm-running/xlarge" ]]; then        
+        xlgfilename=$(find "${current_directory}/vm-running/xlarge" -maxdepth 1 -name "${SRR}-s*")
+    fi
+    if [[ -d "${current_directory}/vm-running/xlow" ]]; then        
+        xlwfilename=$(find "${current_directory}/vm-running/xlow" -maxdepth 1 -name "${SRR}-s*")
+    fi
+    if [[ -d "${current_directory}/vm-running/xxlarge" ]]; then        
+        xxlfilename=$(find "${current_directory}/vm-running/xxlarge" -maxdepth 1 -name "${SRR}-s*")
+    fi
+else
+    if [[ -d "${current_directory}/vm-running/large" ]]; then
+        lgfilename=$(find "${current_directory}/vm-running/large" -maxdepth 1 -name "${SRR}-s*")
+    fi
+    if [[ -d "${current_directory}/vm-running/low" ]]; then    
+        lwfilename=$(find "${current_directory}/vm-running/low" -maxdepth 1 -name "${SRR}-s*")
+    fi
+    if [[ -d "${current_directory}/vm-running/medium" ]]; then        
+        mdfilename=$(find "${current_directory}/vm-running/medium" -maxdepth 1 -name "${SRR}-s*")    
+    fi
+    if [[ -d "${current_directory}/vm-running/xlarge" ]]; then            
+        xlgfilename=$(find "${current_directory}/vm-running/xlarge" -maxdepth 1 -name "${SRR}-s*")    
+    fi
+    if [[ -d "${current_directory}/vm-running/xlow" ]]; then                
+        xlwfilename=$(find "${current_directory}/vm-running/xlow" -maxdepth 1 -name "${SRR}-s*")    
+    fi
+    if [[ -d "${current_directory}/vm-running/xxlarge" ]]; then                    
+        xxlfilename=$(find "${current_directory}/vm-running/xxlarge" -maxdepth 1 -name "${SRR}-s*")    
+    fi
+fi
+#
+# Given the startup script name, location (based on the size of the sample) and the reset type, process the sample
+# This creates a long set of if's but is basically for xlow, low, medium, large, xlarge and xxlarge files
+# If the file is terminated, if the resettype is done, failed or vm2 - different commands are issued to
+# start a new script, queue it to a vm, move the script to a new folder vm-running based on its sizse.
+if [[ -f $lgfilename && $terminated == 1 ]]; then
+    large_file=1
+    if [[ $resettype == "notpaired" ]]; then
+        echo "rm $current_directory/vm-running/large/$SRR-startup*.script" > $executefile
+        gsutil rm gs://$BUCKET_NAME/$SRR.notpaired
+        echo "$SRR" >> $failfile
+    elif [[ $resettype == "failed" ]]; then
+        echo "mv $current_directory/vm-running/large/$SRR-startup*.script $current_directory/vm-scripts/" > $executefile
+    else
+        echo "rm $lgfilename" > $executefile
+    fi
+    if [[ $resettype != "done" && $resettype != "failed" && $resettype != "notpaired" ]]; then  # earlybam,finalbam,trimmed,vm2 
+        if [[ $resettype != "vm2" ]]; then                           #  earlybam  finalbam  trimmed
+	    echo "sed 's/SRRtempnumber/"$SRR"/; s/test-data-bucket/"$BUCKET_NAME"/; s/us-west1/"$GOOGLE_REGION"/; s/c-auris-cdc/"$PROJECT_ID"/; s|pathogentotree|"$PATHOGEN_IMAGE"|' ../bin/partials/$resettype-pickup-startup.script > $current_directory/vm-scripts/$SRR-startup-$resettype.script" >> $executefile
+	    echo "chmod 775 $current_directory/vm-scripts/$SRR-startup-$resettype.script" >> $executefile
+	    echo "gcloud compute instances create "$SRRLOW"-pathogen-vm --preemptible --zone="$GOOGLE_REGION"-a --machine-type=n4-highmem-8 --boot-disk-size=200 --image-family=cos-stable --image-project=cos-cloud --metadata-from-file startup-script="$current_directory"/vm-scripts/"$SRR"-startup-"$resettype".script --service-account="$SERVICE_ACCOUNT" --scopes=https://www.googleapis.com/auth/devstorage.read_write 2>&1 | tee /tmp/gcloud-err.txt" >> $executefile
+        else  #  vm2 
+            echo "gcloud compute instances create "$SRRLOW"-pathogen-vm2 --zone="$GOOGLE_REGION"-a --machine-type=e2-highmem-16 --boot-disk-size=300 --image-family=cos-stable --image-project=cos-cloud --metadata-from-file startup-script="$current_directory"/vm-scripts/"$SRR"-startup-"$resettype".script --service-account="$SERVICE_ACCOUNT" --scopes=https://www.googleapis.com/auth/devstorage.read_write 2>&1 | tee /tmp/gcloud-err.txt" >> $executefile	
+        fi
+        echo "if grep -q 'ERROR' /tmp/gcloud-err.txt; then" >> $executefile
+        echo "  grep 'ERROR' /tmp/gcloud-err.txt" >> $executefile
+        echo "else" >> $executefile
+        echo "  mv $current_directory/vm-scripts/$SRR-startup-$resettype.script $current_directory/vm-running/large/$SRR-startup-$resettype.script" >> $executefile
+        echo "fi" >> $executefile	
+    fi
+elif [[ -f $lwfilename && $terminated == 1 ]]; then  # will not be $resettype == vm2 - not low and not done
+    low_file=1
+    if [[ $resettype == "notpaired" ]]; then
+        echo "rm $current_directory/vm-running/low/$SRR-startup*.script" > $executefile
+        gsutil rm gs://$BUCKET_NAME/$SRR.notpaired	
+        echo "$SRR" >> $failfile
+    elif [[ $resettype == "failed" ]]; then
+        echo "mv $current_directory/vm-running/low/$SRR-startup*.script $current_directory/vm-scripts/" > $executefile	
+    else  #  earlybam  finalbam  trimmed  vm2  done 
+        echo "rm $lwfilename" > $executefile
+        if [[ $resettype == "earlybam" || $resettype == "finalbam" || $resettype == "trimmed" ]]; then	
+            echo "sed 's/SRRtempnumber/"$SRR"/; s/test-data-bucket/"$BUCKET_NAME"/; s/us-west1/"$GOOGLE_REGION"/; s/c-auris-cdc/"$PROJECT_ID"/; s|pathogentotree|"$PATHOGEN_IMAGE"|' ../bin/partials/$resettype-pickup-startup.script > $current_directory/vm-scripts/$SRR-startup-$resettype.script" >> $executefile
+            echo "chmod 775 $current_directory/vm-scripts/$SRR-startup-$resettype.script" >> $executefile    
+            echo "gcloud compute instances create "$SRRLOW"-pathogen-vm --preemptible --zone="$GOOGLE_REGION"-a --machine-type=e2-highmem-4 --boot-disk-size=50 --image-family=cos-stable --image-project=cos-cloud --metadata-from-file startup-script="$current_directory"/vm-scripts/"$SRR"-startup-"$resettype".script --service-account="$SERVICE_ACCOUNT" --scopes=https://www.googleapis.com/auth/devstorage.read_write 2>&1 | tee /tmp/gcloud-err.txt" >> $executefile
+            echo "if grep -q 'ERROR' /tmp/gcloud-err.txt; then" >> $executefile
+            echo "  grep 'ERROR' /tmp/gcloud-err.txt" >> $executefile
+            echo "else" >> $executefile
+            echo "  mv $current_directory/vm-scripts/$SRR-startup-$resettype.script $current_directory/vm-running/low/$SRR-startup-$resettype.script" >> $executefile
+            echo "fi" >> $executefile
+        fi
+    fi
+elif [[ -f $mdfilename && $terminated == 1 ]]; then
+    medium_file=1
+    if [[ $resettype == "notpaired" ]]; then
+        echo "rm $current_directory/vm-running/medium/$SRR-startup*.script" > $executefile
+        gsutil rm gs://$BUCKET_NAME/$SRR.notpaired
+        echo "$SRR" >> $failfile
+    elif [[ $resettype == "failed" ]]; then
+        echo "mv $current_directory/vm-running/medium/$SRR-startup*.script $current_directory/vm-scripts/" > $executefile
+    else
+        echo "rm $mdfilename" > $executefile
+    fi
+    if [[ $resettype != "done" && $resettype != "failed" && $resettype != "notpaired" ]]; then  #  earlybam,finalbam,trimmed,vm2 
+        if [[ $resettype != "vm2" ]]; then                                       #  earlybam  finalbam  trimmed
+            echo "sed 's/SRRtempnumber/"$SRR"/; s/test-data-bucket/"$BUCKET_NAME"/; s/us-west1/"$GOOGLE_REGION"/; s/c-auris-cdc/"$PROJECT_ID"/; s|pathogentotree|"$PATHOGEN_IMAGE"|' ../bin/partials/$resettype-pickup-startup.script > $current_directory/vm-scripts/$SRR-startup-$resettype.script" >> $executefile
+            echo "chmod 775 $current_directory/vm-scripts/$SRR-startup-$resettype.script" >> $executefile 
+            echo "gcloud compute instances create "$SRRLOW"-pathogen-vm --preemptible --zone="$GOOGLE_REGION"-a --machine-type=e2-highmem-4 --boot-disk-size=50 --image-family=cos-stable --image-project=cos-cloud --metadata-from-file startup-script="$current_directory"/vm-scripts/"$SRR"-startup-"$resettype".script --service-account="$SERVICE_ACCOUNT" --scopes=https://www.googleapis.com/auth/devstorage.read_write 2>&1 | tee /tmp/gcloud-err.txt" >> $executefile
+        else                  # vm2
+            echo "gcloud compute instances create "$SRRLOW"-pathogen-vm2 --zone="$GOOGLE_REGION"-a --machine-type=n1-highmem-16 --boot-disk-size=300 --image-family=cos-stable --image-project=cos-cloud --metadata-from-file startup-script="$current_directory"/vm-scripts/"$SRR"-startup-"$resettype".script --service-account="$SERVICE_ACCOUNT" --scopes=https://www.googleapis.com/auth/devstorage.read_write 2>&1 | tee /tmp/gcloud-err.txt" >> $executefile
+        fi
+        echo "if grep -q 'ERROR' /tmp/gcloud-err.txt; then" >> $executefile
+        echo "  grep 'ERROR' /tmp/gcloud-err.txt" >> $executefile
+        echo "else" >> $executefile
+        echo "  mv $current_directory/vm-scripts/$SRR-startup-$resettype.script $current_directory/vm-running/medium/$SRR-startup-$resettype.script" >> $executefile
+        echo "fi" >> $executefile
+    fi
+elif [[ -f $xlgfilename && $terminated == 1 ]]; then
+    xlarge_file=1
+    if [[ $resettype == "notpaired" ]]; then
+        echo "rm $current_directory/vm-running/xlarge/$SRR-startup*.script" > $executefile
+        gsutil rm gs://$BUCKET_NAME/$SRR.notpaired	
+        echo "$SRR" >> $failfile
+    elif [[ $resettype == "failed" ]]; then
+        echo "mv $current_directory/vm-running/xlarge/$SRR-startup*.script $current_directory/vm-scripts/" > $executefile
+    else
+        echo "rm $xlgfilename" > $executefile
+    fi
+    if [[ $resettype != "done" && $resettype != "failed" && $resettype != "notpaired" ]]; then  #earlybam,finalbam,trimmed,vm2 
+        if [[ $resettype != "vm2" ]]; then                                           #  earlybam  finalbam  trimmed
+            echo "sed 's/SRRtempnumber/"$SRR"/; s/test-data-bucket/"$BUCKET_NAME"/; s/us-west1/"$GOOGLE_REGION"/; s/c-auris-cdc/"$PROJECT_ID"/; s|pathogentotree|"$PATHOGEN_IMAGE"|' ../bin/partials/$resettype-pickup-startup.script > $current_directory/vm-scripts/$SRR-startup-$resettype.script" >> $executefile
+            echo "chmod 775 $current_directory/vm-scripts/$SRR-startup-$resettype.script" >> $executefile    	    
+            echo "gcloud compute instances create "$SRRLOW"-pathogen-vm --preemptible --zone="$GOOGLE_REGION"-a --machine-type=n4-highmem-8 --boot-disk-size=200 --image-family=cos-stable --image-project=cos-cloud --metadata-from-file startup-script="$current_directory"/vm-scripts/"$SRR"-startup-"$resettype".script --service-account="$SERVICE_ACCOUNT" --scopes=https://www.googleapis.com/auth/devstorage.read_write 2>&1 | tee /tmp/gcloud-err.txt" >> $executefile
+        else      # vm2
+            echo "gcloud compute instances create "$SRRLOW"-pathogen-vm2 --zone="$GOOGLE_REGION"-a --machine-type=n1-highmem-16 --boot-disk-size=300 --image-family=cos-stable --image-project=cos-cloud --metadata-from-file startup-script="$current_directory"/vm-scripts/"$SRR"-startup-"$resettype".script --service-account="$SERVICE_ACCOUNT" --scopes=https://www.googleapis.com/auth/devstorage.read_write 2>&1 | tee /tmp/gcloud-err.txt" >> $executefile
+        fi
+        echo "if grep -q 'ERROR' /tmp/gcloud-err.txt; then" >> $executefile
+        echo "  grep 'ERROR' /tmp/gcloud-err.txt" >> $executefile
+        echo "else" >> $executefile
+        echo "  mv $current_directory/vm-scripts/$SRR-startup-$resettype.script $current_directory/vm-running/xlarge/$SRR-startup-$resettype.script" >> $executefile
+        echo "fi" >> $executefile		
+    fi
+elif [[ -f $xlwfilename && $terminated == 1 ]]; then  # will not be $resettype == vm2 - not low or done
+    xlow_file=1
+    if [[ $resettype == "notpaired" ]]; then
+        echo "rm $current_directory/vm-running/xlow/$SRR-startup*.script" > $executefile
+        gsutil rm gs://$BUCKET_NAME/$SRR.notpaired	
+        echo "$SRR" >> $failfile
+    elif [[ $resettype == "failed" ]]; then
+        echo "mv $current_directory/vm-running/xlow/$SRR-startup*.script $current_directory/vm-scripts/" > $executefile
+    else  #  earlybam  finalbam  trimmed  vm2  done 
+        echo "rm $xlwfilename" > $executefile
+        if [[ $resettype == "earlybam" || $resettype == "finalbam" || $resettype == "trimmed" ]]; then	
+            echo "sed 's/SRRtempnumber/"$SRR"/; s/test-data-bucket/"$BUCKET_NAME"/; s/us-west1/"$GOOGLE_REGION"/; s/c-auris-cdc/"$PROJECT_ID"/; s|pathogentotree|"$PATHOGEN_IMAGE"|' ../bin/partials/$resettype-pickup-startup.script > $current_directory/vm-scripts/$SRR-startup-$resettype.script" >> $executefile
+            echo "chmod 775 $current_directory/vm-scripts/$SRR-startup-$resettype.script" >> $executefile        
+            echo "gcloud compute instances create $SRRLOW-pathogen-vm --preemptible --zone="$GOOGLE_REGION"-a --machine-type=e2-highmem-4 --boot-disk-size=50 --image-family=cos-stable --image-project=cos-cloud --metadata-from-file startup-script="$current_directory"/vm-scripts/"$SRR"-startup-"$resettype".script --service-account="$SERVICE_ACCOUNT" --scopes=https://www.googleapis.com/auth/devstorage.read_write 2>&1 | tee /tmp/gcloud-err.txt" >> $executefile
+            echo "if grep -q 'ERROR' /tmp/gcloud-err.txt; then" >> $executefile
+            echo "  grep 'ERROR' /tmp/gcloud-err.txt" >> $executefile
+            echo "else" >> $executefile
+            echo "  mv "$current_directory"/vm-scripts/"$SRR"-startup-"$resettype".script "$current_directory"/vm-running/xlow/"$SRR"-startup-"$resettype".script" >> $executefile
+            echo "fi" >> $executefile		    
+        fi
+    fi
+elif [[ -f $xxlfilename && $terminated == 1 ]]; then
+    xxlarge_file=1
+    if [[ $resettype == "notpaired" ]]; then
+        echo "rm $current_directory/vm-running/xxlarge/$SRR-startup*.script" > $executefile
+        gsutil rm gs://$BUCKET_NAME/$SRR.notpaired	
+        echo "$SRR" >> $failfile
+    elif [[ $resettype == "failed" ]]; then
+        echo "mv $current_directory/vm-running/xxlarge/$SRR-startup*.script $current_directory/vm-scripts/" > $executefile
+    else
+        echo "rm $xxlfilename" > $executefile
+    fi
+    if [[ $resettype != "done" && $resettype != "failed" && $resettype != "notpaired" ]]; then #earlybam,finalbam,trimmed
+        if [[ $resettype != "vm2" ]]; then                        #  earlybam  finalbam  trimmed
+            echo "sed 's/SRRtempnumber/"$SRR"/; s/test-data-bucket/"$BUCKET_NAME"/; s/us-west1/"$GOOGLE_REGION"/; s/c-auris-cdc/"$PROJECT_ID"/; s|pathogentotree|"$PATHOGEN_IMAGE"|' ../bin/partials/$resettype-pickup-startup.script > $current_directory/vm-scripts/$SRR-startup-$resettype.script" >> $executefile
+            echo "chmod 775 $current_directory/vm-scripts/$SRR-startup-$resettype.script" >> $executefile    	    
+            echo "gcloud compute instances create $SRRLOW-pathogen-vm --preemptible --zone="$GOOGLE_REGION"-a --machine-type=e2-highmem-16 --boot-disk-size=500 --image-family=cos-stable --image-project=cos-cloud --metadata-from-file startup-script="$current_directory"/vm-scripts/"$SRR"-startup-"$resettype".script --service-account="$SERVICE_ACCOUNT" --scopes=https://www.googleapis.com/auth/devstorage.read_write 2>&1 | tee /tmp/gcloud-err.txt" >> $executefile
+        else          #vm2
+            echo "gcloud compute instances create $SRRLOW-pathogen-vm2 --zone="$GOOGLE_REGION"-a --machine-type=n1-highmem-16 --boot-disk-size=500 --image-family=cos-stable --image-project=cos-cloud --metadata-from-file startup-script="$current_directory"/vm-scripts/"$SRR"-startup-"$resettype".script --service-account="$SERVICE_ACCOUNT" --scopes=https://www.googleapis.com/auth/devstorage.read_write 2>&1 | tee /tmp/gcloud-err.txt" >> $executefile
+        fi
+        echo "if grep -q 'ERROR' /tmp/gcloud-err.txt; then" >> $executefile
+        echo "  grep 'ERROR' /tmp/gcloud-err.txt" >> $executefile
+        echo "else" >> $executefile
+        echo "  mv $current_directory/vm-scripts/$SRR-startup-$resettype.script $current_directory/vm-running/xxlarge/$SRR-startup-$resettype.script" >> $executefile
+        echo "fi" >> $executefile
+    fi
+fi
+#
+# If the execute file exists and is not empty, change is mod and place it in the appropriate folder
+if [[ -f "$executefile" && ! -s "$executefile" ]]; then
+    # file exists and is empty
+    rm $executefile
+elif [[ -f "$executefile" ]]; then
+    # file exists and is not empty 
+    chmod 775 $executefile
+    output=$(./$executefile 2>&1)
+    echo "$output"
+    mv $executefile vm-scripts/done
+fi

@@ -1,0 +1,408 @@
+#!/bin/bash
+#
+# Program build_metadata.script is called from sra-setup.script.
+# Program expects 38 ./metadata/CeX.dat files and 43 ./metadata/EeX.dat files (could be variable someday)
+# These files are columns from the ./metadata/candida_metadata.tsv and the ./metadata/Entrez.csv.
+#
+# This program fills in missing fields with "missing".
+# This program pulls ids from candida_metadata.tsv and Entrez.csv to make ./metadata/CE_KEY.dat
+# A unique list of ids is stored in ./metadata/CE_KEYs.dat
+# These ids (./metadata/CE_KEYs.dat) are used to create a comprehensive metadata list ./metadata/CE_KEY_META.tsv
+#
+# You may change the metadata used to display on the taxonium trees in this program.
+# Make sure you update the column names in the sra-setup.script
+#
+# Initialize variables with default values
+FOLDER_NAME=""
+CANDIDA_NAME=""
+ENTREZ_NAME=""
+usage() {
+    echo "Usage: $0 [-v|--verbose] [-f|--folder] [-c|--candida candida_name] [-e|--entrez entrez_name]"
+    exit 1
+}
+# Loop through all arguments until none are left
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -v|--verbose)
+            VERBOSE=true
+            shift # Move past the flag
+            ;;
+        -f|--folder)
+            if [[ -z "$2" || "$2" =~ ^- ]]; then
+                echo "Error: --folder requires an string argument."
+                exit 1
+            else
+                FOLDER_NAME="$2"
+                shift 2 # Move past the flag and its value
+            fi
+            ;;
+        -c|--candida)
+            if [[ -z "$2" || "$2" =~ ^- ]]; then
+                echo "Error: --candida requires an string argument."
+                exit 1
+            else
+                CANDIDA_NAME="$2"
+                shift 2 # Move past the flag and its value
+            fi
+            ;;
+        -e|--entrez)
+            if [[ -z "$2" || "$2" =~ ^- ]]; then
+                echo "Error: --entrez requires an string argument."
+                exit 1
+            else
+                ENTREZ_NAME="$2"
+                shift 2 # Move past the flag and its value
+            fi
+            ;;
+        -h|--help)
+            usage
+            ;;
+         *) # Handle unknown options or positional parameters
+            echo "Unknown option: $1"
+            usage
+            ;;
+    esac
+done
+echo "FOLDER_NAME = $FOLDER_NAME"
+echo "ENTREZ_NAME = $ENTREZ_NAME"
+echo "CANDIDA_NAME = $CANDIDA_NAME"
+#Cut each column of interest, into Cx.dat or Ex.dat
+#Delete trailing spaces and tabs, also all remaining /t[](){} ,:;"/| replace with _
+#Save cleaned column of interest, into Cex.dat or Eex.dat
+#Remove column of interest files Cx.dat and Ex.dat
+for i in {1..38}; do
+    sed '1d' $CANDIDA_NAME | cut -f $i > $FOLDER_NAME/C$i.dat
+    sed 's/\t*$//; s/ *$//' $FOLDER_NAME/C$i.dat | tr '\t[](){},:;"/| ' '_' > $FOLDER_NAME/Ce$i.dat
+    rm $FOLDER_NAME/C$i.dat
+done
+for i in {1..43}; do
+    sed '1d' $ENTREZ_NAME | cut -f $i -d',' > $FOLDER_NAME/E$i.dat
+    sed 's/\t*$//; s/ *$//' $FOLDER_NAME/E$i.dat | tr '\t[](){},:;"/| ' '_' > $FOLDER_NAME/Ee$i.dat
+    rm $FOLDER_NAME/E$i.dat    
+done
+#
+#Paste columns containing experiment_accession #'s together and sort uniquely. This will be the KEY
+cp $FOLDER_NAME/Ce1.dat $FOLDER_NAME/CE_KEY.dat
+cat $FOLDER_NAME/Ee11.dat >> $FOLDER_NAME/CE_KEY.dat
+sort -u $FOLDER_NAME/CE_KEY.dat > $FOLDER_NAME/CE_KEYs.dat
+#
+if [[ -f $FOLDER_NAME/CE_KEY_META.tsv ]]; then
+    rm $FOLDER_NAME/CE_KEY_META.tsv
+fi
+touch $FOLDER_NAME/CE_KEY_META.tsv
+printf "KEY\tExperiment\tStudy_Accession\tBio_Project\tSample_Accession\tBio_Sample\tRun_Accession\tSubmission_Accession\tSRA_Study\tProject_ID\tExperiment_Alias\tLibrary_Name\tStrain\tIsolate\tTotal_Spots\tTotal_Bases\tSpots_With_Mates\tAvg_Length\tSize_MB\tCollected_By\tCollection_Date\tRun_Published\tRelease_Date\tLoad_Date\tGeo_Loc_Name\tLat_Lon\tCenter_Name\tSubmission\tIsolation_Source\n" > $FOLDER_NAME/CE_KEY_META.tsv
+while IFS= read -r line || [ -n "$line" ]; do
+    # pull the line number from each data set, there may be more than one line, use the first
+    cline=$(grep -n "$line" "$FOLDER_NAME/Ce1.dat" | cut -f 1 -d':' | head -n 1 )
+    eline=$(grep -n "$line" "$FOLDER_NAME/Ee11.dat" | cut -f 1 -d':' | head -n 1 )
+    # Study_accession
+    c12line="missing"
+    if [[ ! -z "$cline" ]]; then
+	c12line=$(sed -n "$cline"p "$FOLDER_NAME/Ce12.dat")
+	if [[ -z "$c12line" ]]; then
+	    c12line="missing"
+	fi
+    fi
+    # BioProject
+    c13line="missing"    
+    if [[ ! -z "$cline" ]]; then    
+	c13line=$(sed -n "$cline"p "$FOLDER_NAME/Ce13.dat")
+	if [[ -z "$c13line" ]]; then
+	    c13line="missing"
+	    if [[ ! -z "$eline" ]]; then	    
+		e22line=$(sed -n "$eline"p "$FOLDER_NAME/Ee22.dat")
+		if [[ ! -z "$e22line" ]]; then
+		    c13line="$e22line"
+		fi
+	    fi
+	fi
+    elif [[ ! -z "$eline" ]]; then
+	e22line=$(sed -n "$eline"p "$FOLDER_NAME/Ee22.dat")
+	if [[ ! -z "$e22line" ]]; then
+	    c13line="$e22line"
+	else
+	    c13line="missing"
+	fi
+    fi
+    # sample_accession
+    c16line="missing"    
+    if [[ ! -z "$cline" ]]; then        
+	c16line=$(sed -n "$cline"p "$FOLDER_NAME/Ce16.dat")
+	if [[ -z "$c16line" ]]; then
+	    c16line="missing"
+	    if [[ ! -z "$eline" ]]; then        	    
+		e25line=$(sed -n "$eline"p "$FOLDER_NAME/Ee25.dat")
+		if [[ ! -z "$e25line" ]]; then
+		    c16line="$e25line"
+		fi
+	    fi
+	fi
+    elif [[ ! -z "$eline" ]]; then
+	e25line=$(sed -n "$eline"p "$FOLDER_NAME/Ee25.dat")
+	if [[ ! -z "$e25line" ]]; then
+	    c16line="$e25line"
+	else
+	    c16line="missing"
+	fi
+    fi
+    # biosample
+    c17line="missing"    
+    if [[ ! -z "$cline" ]]; then            
+	c17line=$(sed -n "$cline"p "$FOLDER_NAME/Ce17.dat")
+	if [[ -z "$c17line" ]]; then
+	    c17line="missing"
+	    if [[ ! -z "$eline" ]]; then            	    
+		e26line=$(sed -n "$eline"p "$FOLDER_NAME/Ee26.dat")
+		if [[ ! -z "$e26line" ]]; then
+		    c17line="$e26line"
+		fi
+	    fi
+	fi
+    elif [[ ! -z "$eline" ]]; then
+	e26line=$(sed -n "$eline"p "$FOLDER_NAME/Ee26.dat")
+	if [[ ! -z "$e26line" ]]; then
+	    c17line="$e26line"
+	else
+	    c17line="missing"
+	fi
+    fi
+    # run_accession
+    c34line="missing"    
+    if [[ ! -z "$cline" ]]; then                
+	c34line=$(sed -n "$cline"p "$FOLDER_NAME/Ce34.dat")
+	if [[ -z "$c34line" ]]; then
+	    c34line="missing"
+	    if [[ ! -z "$eline" ]]; then                	    
+		e1line=$(sed -n "$eline"p "$FOLDER_NAME/Ee1.dat")
+		if [[ ! -z "$e1line" ]]; then
+		    c34line="$e1line"
+		fi
+	    fi
+	fi
+    elif [[ ! -z "$eline" ]]; then
+	e1line=$(sed -n "$eline"p "$FOLDER_NAME/Ee1.dat")
+	if [[ ! -z "$e1line" ]]; then
+	    c34line="$e1line"
+	else
+	    c34line="missing"
+	fi
+    fi
+    # submission_accession
+    c38line="missing"
+    if [[ ! -z "$cline" ]]; then
+	c38line=$(sed -n "$cline"p "$FOLDER_NAME/Ce38.dat")
+	if [[ -z "$c38line" ]]; then
+	    c38line="missing"
+	fi
+    fi
+    # SRAStudy
+    e21line="missing"
+    if [[ ! -z "$eline" ]]; then
+	e21line=$(sed -n "$eline"p "$FOLDER_NAME/Ee21.dat")
+	if [[ -z "$e21line" ]]; then
+	    e21line="missing"
+	fi
+    fi
+    # ProjectID
+    e24line="missing"
+    if [[ ! -z "$eline" ]]; then
+	e24line=$(sed -n "$eline"p "$FOLDER_NAME/Ee24.dat")
+	if [[ -z "$e24line" ]]; then
+	    e24line="missing"
+	fi
+    fi
+    # experiment_alias
+    c2line="missing"
+    if [[ ! -z "$cline" ]]; then
+	c2line=$(sed -n "$cline"p "$FOLDER_NAME/Ce2.dat")
+	if [[ -z "$c2line" ]]; then
+	    c2line="missing"
+	fi
+    fi
+    # library_name
+    c7line="missing"
+    if [[ ! -z "$cline" ]]; then
+	c7line=$(sed -n "$cline"p "$FOLDER_NAME/Ce7.dat")
+	if [[ -z "$c7line" ]]; then
+	    c7line="missing"
+	fi
+    fi
+    # strain
+    c30line="missing"
+    if [[ ! -z "$cline" ]]; then
+	c30line=$(sed -n "$cline"p "$FOLDER_NAME/Ce30.dat")
+	if [[ -z "$c30line" ]]; then
+	    c30line="missing"
+	fi
+    fi
+    # isolate
+    c31line="missing"
+    if [[ ! -z "$cline" ]]; then
+	c31line=$(sed -n "$cline"p "$FOLDER_NAME/Ce31.dat")
+	if [[ -z "$c31line" ]]; then
+	    c31line="missing"
+	fi
+    fi
+    # total_spots
+    c35line="missing"    
+    if [[ ! -z "$cline" ]]; then                
+	c35line=$(sed -n "$cline"p "$FOLDER_NAME/Ce35.dat")
+	if [[ -z "$c35line" ]]; then
+	    c35line="missing"
+	    if [[ ! -z "$eline" ]]; then                	    
+		e4line=$(sed -n "$eline"p "$FOLDER_NAME/Ee4.dat")
+		if [[ ! -z "$e4line" ]]; then
+		    c35line="$e4line"
+		fi
+	    fi
+	fi
+    elif [[ ! -z "$eline" ]]; then
+	e4line=$(sed -n "$eline"p "$FOLDER_NAME/Ee4.dat")
+	if [[ ! -z "$e4line" ]]; then
+	    c35line="$e4line"
+	else
+	    c35line="missing"
+	fi
+    fi
+    # total_bases
+    c36line="missing"    
+    if [[ ! -z "$cline" ]]; then                
+	c36line=$(sed -n "$cline"p "$FOLDER_NAME/Ce36.dat")
+	if [[ -z "$c36line" ]]; then
+	    c36line="missing"
+	    if [[ ! -z "$eline" ]]; then                	    
+		e5line=$(sed -n "$eline"p "$FOLDER_NAME/Ee5.dat")
+		if [[ ! -z "$e5line" ]]; then
+		    c36line="$e5line"
+		fi
+	    fi
+	fi
+    elif [[ ! -z "$eline" ]]; then
+	e5line=$(sed -n "$eline"p "$FOLDER_NAME/Ee5.dat")
+	if [[ ! -z "$e5line" ]]; then
+	    c36line="$e5line"
+	else
+	    c36line="missing"
+	fi
+    fi
+    # spots_with_mates
+    e6line="missing"
+    if [[ ! -z "$eline" ]]; then
+	e6line=$(sed -n "$eline"p "$FOLDER_NAME/Ee6.dat")
+	if [[ -z "$e6line" ]]; then
+	    e6line="missing"
+	fi
+    fi
+    # avgLength
+    e7line="missing"
+    if [[ ! -z "$eline" ]]; then
+	e7line=$(sed -n "$eline"p "$FOLDER_NAME/Ee7.dat")
+	if [[ -z "$e7line" ]]; then
+	    e7line="missing"
+	fi
+    fi
+    # size_MB
+    e8line="missing"
+    if [[ ! -z "$eline" ]]; then
+	e8line=$(sed -n "$eline"p "$FOLDER_NAME/Ee8.dat")
+	if [[ -z "$e8line" ]]; then
+	    e8line="missing"
+	fi
+    fi
+    # collected_by
+    c21line="missing"
+    if [[ ! -z "$cline" ]]; then
+	c21line=$(sed -n "$cline"p "$FOLDER_NAME/Ce21.dat")
+	if [[ -z "$c21line" ]]; then
+	    c21line="missing"
+	fi
+    fi
+    # collection_date
+    c22line="missing"
+    if [[ ! -z "$cline" ]]; then
+	c22line=$(sed -n "$cline"p "$FOLDER_NAME/Ce22.dat")
+	if [[ -z "$c22line" ]]; then
+	    c22line="missing"
+	fi
+    fi
+    # run_published
+    c37line="missing"
+    if [[ ! -z "$cline" ]]; then
+	c37line=$(sed -n "$cline"p "$FOLDER_NAME/Ce37.dat")
+	if [[ -z "$c37line" ]]; then
+	    c37line="missing"
+	fi
+    fi
+    # ReleaseDate
+    e2line="missing"
+    if [[ ! -z "$eline" ]]; then
+	e2line=$(sed -n "$eline"p "$FOLDER_NAME/Ee2.dat")
+	if [[ -z "$e2line" ]]; then
+	    e2line="missing"
+	fi
+    fi
+    # LoadDate
+    e3line="missing"
+    if [[ ! -z "$eline" ]]; then
+	e3line=$(sed -n "$eline"p "$FOLDER_NAME/Ee3.dat")
+	if [[ -z "$e3line" ]]; then
+	    e3line="missing"
+	fi
+    fi
+    # geo_loc_name
+    c23line="missing"
+    if [[ ! -z "$cline" ]]; then
+	c23line=$(sed -n "$cline"p "$FOLDER_NAME/Ce23.dat")
+	if [[ -z "$c23line" ]]; then
+	    c23line="missing"
+	fi
+    fi
+    # lat_lon
+    c28line="missing"
+    if [[ ! -z "$cline" ]]; then
+	c28line=$(sed -n "$cline"p "$FOLDER_NAME/Ce28.dat")
+	if [[ -z "$c28line" ]]; then
+	    c28line="missing"
+	fi
+    fi
+    # CenterName
+    e42line="missing"
+    if [[ ! -z "$eline" ]]; then
+	e42line=$(sed -n "$eline"p "$FOLDER_NAME/Ee42.dat")
+	if [[ -z "$e42line" ]]; then
+	    e42line="missing"
+	fi
+    fi
+    # Submission
+    e43line="missing"
+    if [[ ! -z "$eline" ]]; then
+	e43line=$(sed -n "$eline"p "$FOLDER_NAME/Ee43.dat")
+	if [[ -z "$e43line" ]]; then
+	    e43line="missing"
+	fi
+    fi
+    # isolation_source
+    c26line="missing"
+    if [[ ! -z "$cline" ]]; then
+	c26line=$(sed -n "$cline"p "$FOLDER_NAME/Ce26.dat")
+	if [[ -z "$c26line" ]]; then
+	    c26line="missing"
+	fi
+    fi
+    # Print the KEY - twice, for KEY and value
+    printf "%s\t%s\t%s\t%s\t%s\t%s\t" "$c34line" "$line" "$c12line" "$c13line" "$c16line" "$c17line" >> $FOLDER_NAME/CE_KEY_META.tsv
+    printf "%s\t%s\t%s\t%s\t%s\t%s\t" "$c34line" "$c38line" "$e21line" "$e24line" "$c2line" "$c7line" >> $FOLDER_NAME/CE_KEY_META.tsv
+    printf "%s\t%s\t%s\t%s\t%s\t%s\t" "$c30line" "$c31line" "$c35line" "$c36line" "$e6line" "$e7line" >> $FOLDER_NAME/CE_KEY_META.tsv
+    printf "%s\t%s\t%s\t%s\t%s\t%s\t" "$e8line" "$c21line" "$c22line" "$c37line" "$e2line" "$e3line" >> $FOLDER_NAME/CE_KEY_META.tsv
+    printf "%s\t%s\t%s\t%s\t%s\n" "$c23line" "$c28line" "$e42line" "$e43line" "$c26line"  >> $FOLDER_NAME/CE_KEY_META.tsv
+    
+done < $FOLDER_NAME/CE_KEYs.dat
+#
+#Remove Cex.dat and Eex.dat
+#
+for i in {1..38}; do
+    rm $FOLDER_NAME/Ce$i.dat
+done
+for i in {1..43}; do
+    rm $FOLDER_NAME/Ee$i.dat    
+done

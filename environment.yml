@@ -1,0 +1,37 @@
+name: pathogentotree
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - python=3.12
+  - mummer4              # nucmer, show-coords (reference self-alignment / masking)
+  - bedtools              # maskfasta, interval ops
+  - samtools
+  - bwa
+  - gatk4
+  - picard
+  - openjdk=21            # required by picard/gatk
+  - entrez-direct         # esearch, efetch, xtract (samn-pull.sh, Entrez_batch_fetch_sra.sh)
+  - sra-tools             # prefetch, fasterq-dump (srr-pull.sh)
+  - libxml2               # xmllint (Entrez_batch_fetch_sra.sh validation step)
+  - usher                 # usher-sampled, matOptimize, matUtils
+  - pip
+  - pip:
+      - google-cloud-storage
+
+# --- Setup ---
+#   conda env create -f environment.yml
+#   conda activate pathogentotree
+#
+# --- Updating after editing this file ---
+#   conda env update -f environment.yml --prune
+#
+# Notes:
+# - Requires Miniforge/Mambaforge (conda-forge as default channel) or
+#   Miniconda with conda-forge added: https://github.com/conda-forge/miniforge
+# - gcloud/docker are NOT included here; they're host-level dependencies
+#   installed separately (see README "Prerequisites").
+# - Version pins are intentionally loose for now. Once the pipeline is
+#   validated end-to-end, pin exact versions here (e.g. mummer4=4.0.0=*)
+#   so a tree built today can be rebuilt identically later.

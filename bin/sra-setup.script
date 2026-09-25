@@ -1,0 +1,719 @@
+#!/bin/bash
+#initializes sra_now.list
+#
+#get-C.auris-sra_list.script
+#
+#To query NCBI for Candida auris (C. auris) Run IDs (SRR/ERR/DRR)
+#use NCBI's Entrez Direct (EDirect) tool.
+#The main command searches the SRA database and fetches the run accessions:
+#
+#Prerequisites
+#Install Entrez Direct:
+#sh -c "$(curl -fsSL https://ftp.ncbi.nlm.nih.gov/entrez/entrezdirect/install-edirect.sh)"
+#Add to PATH (usually done by installer)
+#export PATH=${HOME}/edirect:${PATH}
+#
+# git clone of pathogentotree once.
+#  cd pathogentotree
+#  conda env create -f "pathogentotree/environment.yml" 2>/dev/null || true
+#  conda activate pathogentotree
+#
+# Each month, run a new batch of samples
+# ./bin/sra-setup.script \
+    #   --project c-auris-cdc \
+    #   --bucket your-bucket \
+    #   --region us-west1 \
+    #   --service your-sa@c-auris-cdc.iam.gserviceaccount.com
+# project is gs project id, bucket is gs bucket name, region is google region, service is your gs service account
+#
+# Once all environment variables are set, sra-setup.script will download SRA data from ncbi.
+# Then search to see if there's a previous folder with results.
+# Queue all sample.fasta data to gs vms monitor, requeue if necessary and pull finished results from bucket.
+# Once all current SRA data has been processed, the results are pooled, qc'd, masked and a tree is built.
+# The tree is optimized and metadata joined for display in taxonium.
+# If a previous tree exists, current results are added, otherwise a brand new tree is built.
+# 
+##############################################
+#  conda setup
+##############################################
+#if ! command -v conda >/dev/null 2>&1; then
+#    echo "Please install Miniforge: https://github.com/conda-forge/miniforge" >&2
+#    exit 1
+#fi
+#source "$(conda info --base)/etc/profile.d/conda.sh"
+#conda env create -f "$REPO_ROOT/environment.yml" 2>/dev/null || true
+#conda activate pathogentotree
+#
+##############################################
+#  End conda setup
+##############################################
+#
+PROJECT_ID=""
+BUCKET_NAME=""
+GOOGLE_REGION=""
+SERVICE_ACCOUNT=""
+PATHOGEN_IMAGE="ghcr.io/tleppertbio/pathogentotree:1.0.0"
+#
+usage() {
+    echo "Usage: $0 [-v|--verbose] [-p|--project project_id] [-b|--bucket bucket_name] [-r|--region google_region] [-s|--service service_account]"
+    exit 1
+}
+#Loop through all arguments until none are left
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -v|--verbose)
+            VERBOSE=true
+            shift # Move past the flag
+            ;;
+        -p|--project)
+            if [[ -z "$2" || "$2" =~ ^- ]]; then
+                echo "Error: --project requires an string argument."
+                exit 1
+            else
+                PROJECT_ID="$2"
+                shift 2 # Move past the flag and its value
+            fi
+           ;;
+        -b|--bucket)
+            if [[ -z "$2" || "$2" =~ ^- ]]; then
+                echo "Error: --bucket requires an string argument."
+                exit 1
+            else
+                BUCKET_NAME="$2"
+                shift 2 # Move past the flag and its value
+            fi
+            ;;
+        -r|--region)
+            if [[ -z "$2" || "$2" =~ ^- ]]; then
+                echo "Error: --region requires an string argument."
+                exit 1
+            else
+                GOOGLE_REGION="$2"
+                shift 2 # Move past the flag and its value
+            fi
+           ;;
+        -s|--service)
+            if [[ -z "$2" || "$2" =~ ^- ]]; then
+                echo "Error: --service requires an string argument."
+                exit 1
+            else
+                SERVICE_ACCOUNT="$2"
+                shift 2 # Move past the flag and its value
+            fi
+           ;;
+        -h|--help)
+            usage
+            ;;
+	        *) # Handle unknown options or positional parameters
+            echo "Unknown option: $1"
+            usage
+            ;;
+    esac
+done
+# Define the google service account
+#echo "Enter the google service account: e.g. xxxxxxxxxxxx-compute@developer.gserviceaccount.com : "
+#read SERVICE_ACCOUNT
+#
+# Define the google project id (enable billing for your Cloud project).
+#echo "Enter the google project id: e.g. c-auris-cdc : "
+#read PROJECT_ID
+#
+# Define the google bucket name.
+#echo "Enter the google bucket name: e.g. test-154312-data-bucket : "
+#read BUCKET_NAME
+#
+# Define the google region you are working in.
+#echo "Enter the google region that you are working in: e.g. us-west1 :"
+#read GOOGLE_REGION
+#
+##############################################
+#  gcloud auth login
+##############################################
+if gcloud auth print-access-token --quiet &> /dev/null; then
+  echo "You are logged into Google cloud."
+else
+  echo "Not logged in or credentials expired"
+  echo "You will need to log into gcloud, using 'gcloud auth login'."
+  echo "This is being invoked, and you will need to authenticate in your web browser."
+  echo "Please check that you are using the google cloud project id for this project."
+  gcloud auth login
+fi
+##############################################
+#  pathogen folder setup
+##############################################
+# The current 'monthly' working directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# The repo pathogentotree
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# The repo pathogentotree/bin
+BIN_DIR="$REPO_ROOT/bin"
+# The repo pathogentotree/mask_files
+MASK_DIR="$REPO_ROOT/mask_files"
+# The repo pathogentotree/reference
+REFERENCE_DIR="$REPO_ROOT/reference"
+if [[ -d "${REPO_ROOT}" ]]; then
+    echo "Current processing directory ${REPO_ROOT} exists."
+    cd $REPO_ROOT
+else
+    echo "Current processing directory ${REPO_ROOT} does not exist."
+    echo "Please move into the pathogentotree folder and restart."    
+    exit 1    
+fi
+if [[ -d "${BIN_DIR}" ]]; then
+    echo "Current /bin directory ${BIN_DIR} exists"
+else
+    echo "Current /bin directory ${BIN_DIR} does not exist."
+    echo "Please move into the pathogentotree folder and restart."    
+    exit 1
+fi
+# 
+##############################################
+#  End pathogen folder setup
+##############################################
+##############################################
+#  pathogen reference folder setup
+##############################################
+# Define the directory path to the prepared reference files.
+echo "A reference folder named ./reference should exist in your current directory."
+echo "If it does, this program will use those files." 
+echo "The following files should be in your reference folder: reference.cluster,reference.coords,"
+echo "reference.delta,reference.dict,reference.fa, reference.fasta, reference.fasta.fai" 
+echo "There should also be a sub-folder bwa which should contain these files: bwa/reference.amb,"
+echo "bwa/reference.ann,bwa/reference.bwt,bwa/reference.pac,bwa/reference.sa" 
+echo "Please read reference.README.md in the documentation folder for how to create these files" 
+echo "Checking for the prepared reference files." 
+reference_files_complete=1
+reference_fa=""
+if [[ -d "${REFERENCE_DIR}" ]]; then
+    echo "Reference directory ${REFERENCE_DIR} exists"
+    if [[ ! -f "${REFERENCE_DIR}/reference.cluster" ]]; then
+	echo "Reference file ${REFERENCE_DIR}/reference.cluster does not exist"
+	reference_files_complete=0	
+    fi	 
+    if [[ ! -f "${REFERENCE_DIR}/reference.coords" ]]; then
+	echo "Reference file ${REFERENCE_DIR}/reference.coords does not exist"
+	reference_files_complete=0		
+    fi	 
+    if [[ ! -f "${REFERENCE_DIR}/reference.delta" ]]; then
+	echo "Reference file ${REFERENCE_DIR}/reference.delta does not exist"
+	reference_files_complete=0		
+    fi	 
+    if [[ ! -f "${REFERENCE_DIR}/reference.dict" ]]; then    		    		
+	echo "Reference file ${REFERENCE_DIR}/reference.dict does not exist"
+	reference_files_complete=0		
+    fi
+    if [[ ! -f "${REFERENCE_DIR}/reference.fa" ]]; then    		    		
+	echo "Reference file ${REFERENCE_DIR}/reference.fa does not exist"
+	reference_files_complete=0
+    else
+	reference_fa="${REFERENCE_DIR}/reference.fa"
+    fi    
+    if [[ ! -f "${REFERENCE_DIR}/reference.fasta" ]]; then    		    		
+	echo "Reference file ${REFERENCE_DIR}/reference.fasta does not exist"
+	reference_files_complete=0		
+    fi
+    if [[ ! -f "${REFERENCE_DIR}/reference.fasta.fai" ]]; then    		    		
+	echo "Reference file ${REFERENCE_DIR}/reference.fasta.fai does not exist"
+	reference_files_complete=0		
+    fi
+    if [[ -d "${REFERENCE_DIR}/bwa" ]]; then
+	echo "Reference directory ${REFERENCE_DIR}/bwa exists"	
+	if [[ ! -f "${REFERENCE_DIR}/bwa/reference.amb" ]]; then    		    		
+	    echo "Reference file ${REFERENCE_DIR}/bwa/reference.amb does not exist"
+	    reference_files_complete=0		    
+	fi
+	if [[ ! -f "${REFERENCE_DIR}/bwa/reference.ann" ]]; then    		    		
+	    echo "Reference file ${REFERENCE_DIR}/bwa/reference.ann does not exist"
+	    reference_files_complete=0		    	    
+	fi
+	if [[ ! -f "${REFERENCE_DIR}/bwa/reference.bwt" ]]; then    		    		
+	    echo "Reference file ${REFERENCE_DIR}/bwa/reference.bwt does not exist"
+	    reference_files_complete=0		    	    
+	fi
+	if [[ ! -f "${REFERENCE_DIR}/bwa/reference.pac" ]]; then    		    		
+	    echo "Reference file ${REFERENCE_DIR}/bwa/reference.pac does not exist"
+	    reference_files_complete=0		    	    
+	fi
+	if [[ ! -f "${REFERENCE_DIR}/bwa/reference.sa" ]]; then    		    		
+	    echo "Reference file ${REFERENCE_DIR}/bwa/reference.sa does not exist"
+	    reference_files_complete=0		    	    
+	fi
+    fi
+fi
+if [[ "$reference_fa" == "" || "$reference_files_complete" == 0 ]]; then
+    echo "Please enter the full path to the reference.fa file you wish to use."
+    echo "If instead, you wish do download a GCA file from ncbi, please enter the GCA number including the version."    
+    read reference_fa
+    if [[ "$reference_fa" == "GCA_"* ]]; then
+	#datasets download genome accession GCA_003013715.2 --include gff3,rna,cds,protein,genome,seq-report
+	#eg GCA_ASM301371v2_genomic.fna
+	datasets download genome accession $reference_fa --include gff3,rna,cds,protein,genome,seq-report	
+	if [[ -f ncbi_dataset.zip ]]; then
+	    unzip ncbi_dataset.zip
+	    cd ncbi_dataset/data/${reference_fa}
+	    mv ${reference_fa} ${REFERENCE_DIR}/reference.fa
+	    reference_fa="${REFERENCE_DIR}/reference.fa"
+	    rm ncbi_dataset.zip
+	    mv README.md ncbi_dataset
+	fi
+    else
+	while [ ! -f "${reference_fa}" ]; do
+	    echo "File not found."	
+	    echo "Please enter the full path to the reference.fa file you wish to use."
+	    read reference_fa	
+	done
+	cp ${reference_fa} ${REFERENCE_DIR}
+    fi
+    cp ${REFERENCE_DIR}/reference.fa ${REFERENCE_DIR}/reference.copy.fa
+    cd ${REFERENCE_DIR}
+    #Run the nucmer program:
+    echo "Running the nucmer program"                        
+    nucmer -p reference --coords --maxmatch --nosimplify reference.fa reference.copy.fa
+    #Run the show-coords program, then modify the result to look like masked_ref.bed:
+    echo "Show coordinates and modify the results using masked_ref.bed"                    
+    show-coords -r -T -H reference.delta > masked_ref_BEFORE_ORDER.bed
+    awk '{if ($1 != $3 && $2 != $4) print $0}' masked_ref_BEFORE_ORDER.bed > masked_ref_BEFORE_ORDER2.bed
+    awk '{print $8"\t"$1"\t"$2}' masked_ref_BEFORE_ORDER2.bed > masked_ref.bed
+    echo "Mask fasta using bedtools"                
+    #Run the bedtools maskfasta:
+    bedtools maskfasta -fi reference.fa -bed masked_ref.bed -fo reference.fasta
+    echo "Use samtools"            
+    #Run the samtools faidx:
+    samtools faidx reference.fasta
+    echo "Create Sequence Dictionary"        
+    #Run the picard.jar v 2.26.10 CreateSequenceDictionary
+    java -jar ${BIN_DIR}/picard.jar CreateSequenceDictionary R=reference.fasta O=reference.dict
+    echo "Make ./bwa files"    
+    #Create a ./bwa directory and run the bwa index program:
+    #mkdir bwa
+    bwa index -p bwa/reference reference.fasta
+fi
+cd ${SCRIPT_DIR}
+echo "Checking reference files in bucket"
+gsutil ls gs://$BUCKET_NAME/ > bucket.list
+if ! grep -q "reference.amb" ${SCRIPT_DIR}/bucket.list; then
+    gsutil cp ${REFERENCE_DIR}/bwa/reference.amb gs://${BUCKET_NAME}
+fi
+if ! grep -q "reference.ann" ${SCRIPT_DIR}/bucket.list; then
+    gsutil cp ${REFERENCE_DIR}/bwa/reference.ann gs://${BUCKET_NAME}
+fi
+if ! grep -q "reference.bwt" ${SCRIPT_DIR}/bucket.list; then
+    gsutil cp ${REFERENCE_DIR}/bwa/reference.bwt gs://${BUCKET_NAME}
+fi
+if ! grep -q "reference.pac" ${SCRIPT_DIR}/bucket.list; then
+    gsutil cp ${REFERENCE_DIR}/bwa/reference.pac gs://${BUCKET_NAME}
+fi
+if ! grep -q "reference.sa" ${SCRIPT_DIR}/bucket.list; then
+    gsutil cp ${REFERENCE_DIR}/bwa/reference.sa gs://${BUCKET_NAME}
+fi
+if ! grep -q "reference.cluster" ${SCRIPT_DIR}/bucket.list; then
+    gsutil cp ${REFERENCE_DIR}/reference.cluster gs://${BUCKET_NAME}
+fi
+if ! grep -q "reference.coords" ${SCRIPT_DIR}/bucket.list; then
+    gsutil cp ${REFERENCE_DIR}/reference.coords gs://${BUCKET_NAME}
+fi
+if ! grep -q "reference.delta" ${SCRIPT_DIR}/bucket.list; then
+    gsutil cp ${REFERENCE_DIR}/reference.delta gs://${BUCKET_NAME}
+fi
+if ! grep -q "reference.dict" ${SCRIPT_DIR}/bucket.list; then
+    gsutil cp ${REFERENCE_DIR}/reference.dict gs://${BUCKET_NAME}
+fi
+if ! grep -q "reference.fa" ${SCRIPT_DIR}/bucket.list; then
+    gsutil cp ${REFERENCE_DIR}/reference.fa gs://${BUCKET_NAME}
+fi
+if ! grep -q "reference.fasta" ${SCRIPT_DIR}/bucket.list; then
+    gsutil cp ${REFERENCE_DIR}/reference.fasta gs://${BUCKET_NAME}
+fi
+if ! grep -q "reference.fasta.fai" ${SCRIPT_DIR}/bucket.list; then
+    gsutil cp ${REFERENCE_DIR}/reference.fasta.fai gs://${BUCKET_NAME}
+fi
+conda deactivate
+##############################################
+#  End pathogen reference folder setup
+##############################################
+##############################################
+#  mask folder setup
+##############################################
+# Define the directory path to the prepared mask files.
+echo "A mask_files folder named ./mask_files should exist in your current directory."
+echo "If it does, this program will use those files." 
+echo "The following files should be in your mask_files folder: fasTAN_1.bed, fasTAN_2.bed,"
+echo "fasTAN_3.bed, fasTAN_4.bed, fasTAN_5.bed, fasTAN_6.bed and fasTAN_7.bed" 
+echo "These folders were created at UCSC to mask highly repetative regions."
+echo "You may use your own bed files and substitute the files we have used with your own." 
+echo "Checking for the prepared masking files."
+masking_files_complete=1
+if [[ -d "${MASK_DIR}" ]]; then
+    echo "Masking directory ${MASK_DIR} exists"
+    if [[ ! -f "${MASK_DIR}/fasTAN_1.bed" ]]; then
+	echo "Masking file ${MASK_DIR}/fasTAN_1.bed does not exist"
+	masking_files_complete=0	
+    fi	 
+    if [[ ! -f "${MASK_DIR}/fasTAN_2.bed" ]]; then
+	echo "Masking file ${MASK_DIR}/fasTAN_2.bed does not exist"
+	masking_files_complete=0	
+    fi	 
+    if [[ ! -f "${MASK_DIR}/fasTAN_3.bed" ]]; then
+	echo "Masking file ${MASK_DIR}/fasTAN_3.bed does not exist"
+	masking_files_complete=0	
+    fi	 
+    if [[ ! -f "${MASK_DIR}/fasTAN_4.bed" ]]; then
+	echo "Masking file ${MASK_DIR}/fasTAN_4.bed does not exist"
+	masking_files_complete=0	
+    fi	 
+    if [[ ! -f "${MASK_DIR}/fasTAN_5.bed" ]]; then
+	echo "Masking file ${MASK_DIR}/fasTAN_5.bed does not exist"
+	masking_files_complete=0	
+    fi	 
+    if [[ ! -f "${MASK_DIR}/fasTAN_6.bed" ]]; then
+	echo "Masking file ${MASK_DIR}/fasTAN_6.bed does not exist"
+	masking_files_complete=0	
+    fi	 
+    if [[ ! -f "${MASK_DIR}/fasTAN_7.bed" ]]; then
+	echo "Masking file ${MASK_DIR}/fasTAN_7.bed does not exist"
+	masking_files_complete=0	
+    fi
+fi
+if [[ "$masking_files_complete" == 0 ]]; then
+    echo
+    echo "Not all masking files were found."
+    echo "Masking is recommended, but will not be performed, due to missing files."    
+    echo
+fi
+#
+##############################################
+#  End mask folder setup
+##############################################
+##############################################
+#  pathogen run folder setup
+##############################################
+#
+if [[ "$installed_entrez" == "Y" || "$installed_entrez" == "y" ]]; then
+    #
+    #Ensure you have curl and grep installed.
+    #Example Commands
+    #Get all C.auris run IDs:
+    #esearch -db sra -query "Candida auris" | efetch -format runinfo | cut -d ',' -f 1 | grep SRR
+    #
+    # Create a YYYY-MM_C.auris directory
+    current_date=$(date +%Y-%m)
+    current_folder="${REPO_ROOT}/${current_date}_C.auris"
+    current_folder_meta="${current_folder}/metadata"
+    if [[ -d "${current_folder}" ]]; then
+        echo "WARNING: Current processing directory ${current_folder} already exists"
+    else
+        mkdir "$current_folder"
+    fi
+    if [[ -d "${current_folder_meta}" ]]; then
+        echo "WARNING: Current processing directory ${current_folder_meta} already exists"
+    else
+        mkdir "$current_folder_meta"
+    fi
+    #
+    # If the user has a previous YYYY-MM_C.auris directory to use...
+    # Look for folders (in reverse order), and count the number n_folder_list and put them in the array folder_list
+    folder_list=( ${REPO_ROOT}/*_C.auris/ )
+    n_folder_list=${#folder_list[@]}
+    #
+    i=n_folder_list
+    previous_directory_exists="N"
+    while ((i >= 0)); do
+	if [[ "${folder_list[i]}" == */[0-9][0-9][0-9][0-9]-[0-9][0-9]_C.auris* ]]; then
+	    folder_name=${folder_list[i]%?}
+	    if [[ "$current_folder" != "$folder_name" ]]; then
+		#	    echo "${folder_list[i]} is correct format"
+		previous_directory_name=$folder_name
+		previous_directory_exists="Y"	    
+		((i-=1))
+	    else
+		echo "$folder_name is same as current folder"
+	    fi
+#	else
+#	    echo "$folder_name is not correct format"
+	fi
+	((i-=1))
+    done
+    echo "Using previous directory $previous_directory_name"
+    if [[ "$previous_directory_exists" == "Y" || "$previous_directory_exists" == "y" ]]; then    
+	previous_tree_dir=0
+	previous_tree=0		    	    		
+	if [[ -f "${previous_directory_name}/current_chrom_nhin.list" ]]; then
+	    echo "Previous directory ${previous_directory_name}/current_chrom_nhin.list file exists"
+	fi
+	if [[ -f "${previous_directory_name}/previous_chrom_nhin.list" ]]; then
+	    echo "Previous directory ${previous_directory_name}/previous_chrom_nhin.list file exists"
+	fi
+	if [[ -f "${previous_directory_name}/disqualified_n.list" ]]; then
+	    echo "Previous directory ${previous_directory_name}/disqualified_n.list file exists"	
+	fi
+	if [[ -f "${previous_directory_name}/previous_disqualified.list" ]]; then
+	    echo "Previous directory ${previous_directory_name}/previous_disqualified.list file exists"
+	fi
+	if [[ -f "${previous_directory_name}/do_not_run.list" ]]; then
+	    echo "Previous directory ${previous_directory_name}/do_not_run.list file exists"
+	fi
+	if [[ -d "${previous_directory_name}/tree" ]]; then
+	    previous_tree_dir=1
+	    echo "Previous directory ${previous_directory_name}/tree folder exists"
+	    if [[ -f "${previous_directory_name}/tree/all_nhin_tree.pb.gz" ]]; then
+		previous_tree=1
+		echo "Previous directory ${previous_directory_name}/tree/all_nhin_tree.pb.gz tree exists"
+		echo "Previous tree will be used to build on.  Adding samples generated by this run."		
+	    fi	
+	fi
+	if [[ $previous_tree == 0 || $previous_tree_dir == 0 ]]; then
+	    echo "Previous directory ${previous_directory_name}/tree/all_nhin_tree.pb.gz does not exist."
+	    echo "There is no previous tree that will be used to build on."
+	    echo "Samples generated by this run, will use a blank starting tree."		
+	fi
+    fi
+    #
+    # light weight mode
+    # esearch -db sra -query "Candida auris" | efetch -format docsum > candida_summary.xml
+    # echo "Reading metadata xml info: May take up to 2 hours, a message will indicate when finished reading." ### ERROR prone
+    # esearch -db sra -query "Candida auris" | efetch -format native -mode xml > "${current_folder_meta}/candida_metadata.xml" ### ERROR prone
+    # echo "Finished Reading metadata xml info"       ### ERROR prone
+    # echo "Reading Entrez info: May take up to 2 hours, a message will indicate when finished reading."    
+    # esearch -db sra -query SRR1664626 | efetch -format gb > SraRunInfoSRRgb.xml
+    # esearch -db sra -query "Candida auris" | efetch -format gb > SraRunInfoSRRBig.xml       
+    # echo "Reading Entrez info: May take up to 2 hours, a message will indicate when finished reading."
+    # to save as .csv
+    # esearch -db sra -query "Candida auris" | efetch -format runinfo > candida_metadata.csv
+    echo "Reading Entrez info: May take up to 2 hours, a message will indicate when finished reading."    
+    esearch -db sra -query "Candida auris" | efetch -format runinfo > "${current_folder_meta}/Entrez.csv"
+    echo "Finished Reading Entrez csv"
+    ${BIN_DIR}/Entrez_batch_fetch_sra.sh "${current_folder_meta}/Entrez.csv" "${current_folder_meta}/SraRunInfobySRR.xml" 200
+    sra_run_info_by_srr=0
+    if [[ -f "${current_folder_meta}/SraRunInfobySRR.xml" ]]; then
+       cp "${current_folder_meta}/SraRunInfobySRR.xml" "${current_folder_meta}/candida_metadata.xml"
+       sra_run_info_by_srr=1
+    fi
+    #
+    if [[ "$previous_directory_exists" == "Y" || "$previous_directory_exists" == "y" ]]; then    
+	#echo "If you have an existing tree using this system, the downloaded file will be checked"
+	#echo "with previous runs to avoid duplication of sample processing."
+	python3 ${BIN_DIR}/parse_entrez.py -c "$current_folder" -p "$previous_directory_name"
+    else
+	python3 ${BIN_DIR}/parse_entrez.py -c "$current_folder" -n
+    fi
+    line_countA=$(wc -l < "$current_folder/metadata/Not_run.info")
+    line_countB=$((line_countA - 1))
+    echo "The number of files to be run is: ${line_countB}"
+    awk -F',' '{print $2 "\t" $1}' "${current_folder_meta}/Not_run.info" | sed -n "2,${line_countA}p" > "${current_folder}/sra_now.list"
+    echo
+    echo "The sra_now.list file has been created."
+    #
+    echo
+    echo "Translating the metadata xml to tsv"
+    if [[ $sra_run_info_by_srr ]]; then
+	python3 ${BIN_DIR}/parse_sra_xml.py "${current_folder_meta}/candida_metadata.xml" "${current_folder_meta}/candida_metadata.tsv"
+	if [[ -f "${current_folder_meta}/candida_metadata.tsv" ]]; then
+	    echo "The candida_metadata.tsv file has been created."
+	else
+	    echo "ERROR the ${current_folder_meta}/candida_metadata.tsv file could not be created."
+	    echo "A download may have been interrupted.."
+	    echo "Please try this series (~2 hour) commands: "
+	    echo 'esearch -db sra -query "Candida auris" | efetch -format runinfo > "${current_folder_meta}/Entrez.csv"'
+	    echo "./bin/Entrez_batch_fetch_sra.sh '${current_folder_meta}/Entrez.csv' '${current_folder_meta}/SraRunInfobySRR.xml' 200"
+	    echo "cp '${current_folder_meta}/SraRunInfobySRR.xml' '${current_folder_meta}/candida_metadata.xml'"	    
+	    echo "python3 parse_sra_xml.py '${current_folder_meta}/candida_metadata.xml' '${current_folder_meta}/candida_metadata.tsv'"
+	fi
+    else
+	echo "ERROR the ${current_folder_meta}/candida_metadata.tsv file could not be created."
+	echo "A download may have been interrupted.."
+	echo "Please try this series (~2 hour) commands: "
+	echo 'esearch -db sra -query "Candida auris" | efetch -format runinfo > "${current_folder_meta}/Entrez.csv"'	
+	echo "./bin/Entrez_batch_fetch_sra.sh '${current_folder_meta}/Entrez.csv' '${current_folder_meta}/SraRunInfobySRR.xml' 200"
+	echo "cp '${current_folder_meta}/SraRunInfobySRR.xml' '${current_folder_meta}/candida_metadata.xml'"
+	echo "python3 parse_sra_xml.py '${current_folder_meta}/candida_metadata.xml' '${current_folder_meta}/candida_metadata.tsv'"	
+    fi
+    echo 
+    echo "Building metadata file- this takes 30-120 minutes"
+    echo     
+    if [[ -f "${current_folder_meta}/Entrez.csv" && -f "${current_folder_meta}/candida_metadata.tsv" ]]; then
+	${BIN_DIR}/build_metadata.script -f "${current_folder_meta}" -c "${current_folder_meta}/candida_metadata.tsv" -e "${current_folder_meta}/Entrez.csv"
+    fi
+fi
+##############################################
+#  end pathogen run folder setup
+##############################################
+##############################################
+#  setup partials folder
+##############################################
+#
+if [[ ! -d "${BIN_DIR}/partials" ]]; then
+    echo "WARNING: ${BIN_DIR}/partials does not exist."
+elif [[ ! -f "${BIN_DIR}/partials/earlybam-pickup-startup.script" ]]; then
+    echo "WARNING: ${BIN_DIR}/partials/earlybam-pickup-startup.script does not exist."
+elif [[ ! -f "${BIN_DIR}/partials/finalbam-pickup-startup.script" ]]; then
+    echo "WARNING: ${BIN_DIR}/partials/finalbam-pickup-startup.script does not exist."    
+elif [[ ! -f "${BIN_DIR}/partials/trimmed-pickup-startup.script" ]]; then
+    echo "WARNING: ${BIN_DIR}/partials/trimmed-pickup-startup.script does not exist."    
+fi
+#
+##############################################
+#  End setup partials folder
+##############################################
+#
+##############################################
+#  Start Main
+##############################################
+#
+cd "${current_folder}"
+python3 ${BIN_DIR}/make_mycosnp_script.py -p "${PROJECT_ID}" -b "${BUCKET_NAME}" -r "${GOOGLE_REGION}" -i "${PATHOGEN_IMAGE}"
+#
+#better run as nohup & ???? #nohup ./master_vm-script &
+${BIN_DIR}/master_vm.script -p "${PROJECT_ID}" -b "${BUCKET_NAME}" -r "${GOOGLE_REGION}" -d "${previous_directory_name}" -s "${SERVICE_ACCOUNT}" -e "${BIN_DIR}" -i "${PATHOGEN_IMAGE}"
+#  for samples in ./vm_scripts; do
+#      invoke_mycosnp_script.py # make the mycosnp google launch scripts
+#      invoke_vm.script         # launch the google vms
+#      if mycosnp-bucket-clean.py -p "${PROJECT_ID}" -b "${BUCKET_NAME}" -r "${GOOGLE_REGION}" -s "${SERVICE_ACCOUNT}"; then  # cleanup the vms
+#          reset.script -p "${PROJECT_ID}" -b "${BUCKET_NAME}" -r "${GOOGLE_REGION}" -s "${SERVICE_ACCOUNT}"
+#          ((cleanup-mycosnp-vm.script)) created by mycosnp-bucket-clean.py
+#      fi
+#  done
+#  finish-project-clean.script -b ${BUCKET_NAME}
+#  count_maple_guts.py
+#  if [ -f $(pwd)/tabulated_bases_from_maple.dat ]; then
+#    calc_coverage.py     reads from ../reference/reference.fa.fai
+#  if [ -f $(pwd)/calculated_ratios.dat ]; then
+#    if [[ ! -d "./disqualified_maples" ]]; then
+#       mkdir ./disqualified_maples
+#    disqualified_maples.script   filters out samples with too high n count
+#  check disk space on file system
+#  if enough disk space, split maples into chromosomes
+#  if enough disk space, mask split maples using bed files
+#  if enough disk space, merge split masked maples into single file, using uniform indexes
+#  split_maples_by_chrom.script
+#  if [[ -d ../mask_files ]]; then
+#     mask_controller.script
+#        mask_maple.py
+#  paste_maples.py      reads from ../reference/reference.fa.fai
+#  mask_parsimony_controller.script
+#  maples_parsimony_packs.script
+#
+##############################################
+#  end Start Main
+##############################################
+##############################################
+#  Post main cleanup
+#  add maples to previous/new C.auris tree
+#  matOptimize and save as nwk                                                                                                                          
+##############################################
+#
+# clean up reference file for Usher
+reference="${REFERENCE_DIR}/reference.fa"
+awk '!/^>/ || NR==1' $reference > ./tree/reference.fa
+#
+# copy previous tree to current tree folder
+previous_tree=${previous_directory_name}"/tree/all_nhin_tree.pb.gz"
+if [[ ! -s "$previous_tree" ]]; then
+    echo '()' > ./tree/emptyTree.nwk
+    previous_tree=./tree/emptyTree.nwk
+else
+    cp $previous_tree ./tree/all_nhin_old_tree.pb.gz
+fi
+#
+cd $current_folder/tree
+#
+# copy files to bucket that will be used in tree building
+gsutil cp ./reference.fa gs://${BUCKET_NAME}
+gsutil cp ./combo_all.*.maple gs://${BUCKET_NAME}
+gsutil cp ./all_nhin_old_tree.pb.gz gs://${BUCKET_NAME}
+#
+# Create matOpt.script which is run on google vm to process tree, and creates sling_matOptimize.script starts up the vm
+#python3 ${BIN_DIR}/make_matOpt_script.py -p c-auris-cdc -b test-154312-data-bucket -r us-west1 -s 250856040547-compute@developer.gserviceaccount.com
+python3 ${BIN_DIR}/make_matOpt_script.py -p "${PROJECT_ID}" -b "${BUCKET_NAME}" -r "${GOOGLE_REGION}" -s "${SERVICE_ACCOUNT}"
+#
+chmod 775 matOpt.script
+chmod 775 sling_matOpt.script
+#
+# Invoke vm and loop to wait while it is done, requeue if failed
+gsutil ls gs://$BUCKET_NAME/ > bucket.list
+while [[ -f bucket.list ]]; do
+    computefile="compute_instances.list"
+    gcloud compute instances list > $computefile
+    sling_file=$(grep matopt-vm compute_instances.list)    
+    if [[ $sling_file == *"matopt-vm"* ]]; then
+	if [[ $sling_file == *"TERMINATED"* ]]; then
+	    gcloud compute instances delete matopt-vm --zone=${GOOGLE_REGION}-a --quiet
+	    ./sling_matOpt.script
+	fi
+    else
+	./sling_matOpt.script
+    fi
+    sleep 15m
+    gsutil ls gs://$BUCKET_NAME/ > bucket.list
+    opt_tree=$(grep all_nhin_opt_tree.pb.gz bucket.list)
+    opt_done=$(grep optimize.done bucket.list)
+    if [[ $opt_tree == *"all_nhin_opt_tree.pb.gz"* && $opt_done == *"optimize.done"* ]]; then
+	gsutil cp gs://$BUCKET_NAME/all_nhin_opt_tree.pb.gz .
+	gsutil cp gs://$BUCKET_NAME/all_nhin_opt_tree.nwk .
+	gsutil cp gs://$BUCKET_NAME/all_nhin_tree.pb.gz .
+	gsutil cp gs://$BUCKET_NAME/compute_instances.list .
+	gsutil cp gs://$BUCKET_NAME/final-tree.nh .
+	gsutil cp gs://$BUCKET_NAME/matOptimize.log .
+	gsutil cp gs://$BUCKET_NAME/mutation-paths.txt .
+	gsutil cp gs://$BUCKET_NAME/placement_stats.tsv .				
+	gsutil cp gs://$BUCKET_NAME/usher-sampled.log .
+        ${BIN_DIR}/finish-project-clean.script -b ${BUCKET_NAME}
+    fi
+done
+##############################################
+#  end add maples to previous/new C.auris tree
+#  end matOptimize and save as nwk
+##############################################
+##############################################
+#  add metadata to C.auris tree
+##############################################
+# Then on mac
+eval "$(conda shell.zsh hook)"
+conda init
+conda activate taxoniumtools
+usher_to_taxonium --input all_nhin_opt_tree.pb.gz --output all_nhin_opt_tree.jsonl.gz
+usher_to_taxonium --input all_nhin_opt_tree.pb.gz --metadata  "${current_folder_meta}/CE_KEY_META.tsv" --columns KEY,Experiment,Study_Accession,Bio_Project,Sample_Accession,Bio_Sample,Run_Accession,Submission_Accession,SRA_Study,Project_ID,Experiment_Alias,Library_Name,Strain,Isolate,Total_Spots,Total_Bases,Spots_With_Mates,Avg_Length,Size_MB,Collected_By,Collection_Date,Run_Published,Release_Date,Load_Date,Geo_Loc_Name,Lat_Lon,Center_Name,Submission,Isolation_Source --key_column KEY --name_internal_nodes --title "26,534 C. auris:all chroms:no low n:masked:opt -M 2 >1000 parsimony removed" --output all_nhin_opt_meta_tree.jsonl.gz
+##############################################
+#  end add metadata to C.auris tree
+##############################################
+##############################################
+#  cleanup files for future runs
+##############################################
+# Return to current folder
+cd ..
+if [[ -f "${previous_directory_name}/previous_chrom_nhin.list" ]]; then
+    cp ${previous_directory_name}/previous_chrom_nhin.list previous_chrom_nhin.list
+else
+    touch previous_chrom_nhin.list
+fi
+if [[ -f "${previous_directory_name}/current_chrom_nhin.list" ]]; then
+    cat ${previous_directory_name}/current_chrom_nhin.list >> previous_chrom_nhin.list
+    sort -u previous_chrom_nhin.list > t.dat
+    mv t.dat previous_chrom_nhin.list
+fi
+ls ./mask_parsimony_allchrom/*.maple > current_chrom_nhin.list
+if [[ -f "${previous_directory_name}/previous_disqualified.list" ]]; then
+    cp ${previous_directory_name}/previous_disqualified.list previous_disqualified.list
+else
+    touch previous_disqualified.list
+fi
+if [[ -f "${previous_directory_name}/disqualified_n.list" ]]; then
+    cat ${previous_directory_name}/disqualified_n.list >> previous_disqualified.list
+    sort -u previous_disqualified.list > t.dat
+    mv t.dat previous_disqualified.list
+fi
+if [[ -f "${previous_directory_name}/do_not_run.list" ]]; then
+    cp ${previous_directory_name}/do_not_run.list do_not_run.list
+else
+    touch do_not_run.list
+fi
+if [[ -f "./metadata/Not_qualified.info" ]]; then
+    cat ./metadata/Not_qualified.info >> do_not_run.list
+    sort -u do_not_run.list > t.dat
+    mv t.dat do_not_run.list
+fi
+##############################################
+#  end cleanup files for future runs
+##############################################
+# Return to original folder
+cd ${REPO_ROOT}
+# End of sra-setup.script

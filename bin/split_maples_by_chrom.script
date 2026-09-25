@@ -1,0 +1,114 @@
+#!/bin/bash
+#
+# ./maple is where the stored processed sample output maple files reside
+# This script ./split_maples_by_chrom.script is called from master_vm.script
+# It splits the maple files in ./maple into separate chromosomes,
+# by finding the chromosome separator (indicated by '>') line in the file.
+# The header of each chromosome.maple file is the name of the sample.chrom_number
+# The controlling files indexes_to_split.script and indexes_to_split.dat are removed after execution.
+#
+WORKING_DIR=""
+BIN_DIR=""
+usage() {
+    echo "Usage: $0 [-v|--verbose] [-w|--working working_dir] [-b|--bin bin_folder]"
+    exit 1
+}
+# Loop through all arguments until none are left
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -v|--verbose)
+            VERBOSE=true
+            shift # Move past the flag
+            ;;
+        -w|--working)
+            if [[ -z "$2" || "$2" =~ ^- ]]; then
+                echo "Error: --working requires an string argument."
+                exit 1
+	    else 
+                WORKING_DIR="$2"
+                shift 2 # Move past the flag and its value
+            fi
+            ;;
+        -b|--bin)
+	    if [[ -z "$2" || "$2" =~ ^- ]]; then
+                echo "Error: --bin requires an string argument."
+                exit 1
+	    else 
+                BIN_DIR="$2"
+                shift 2 # Move past the flag and its value
+            fi
+            ;;
+        -h|--help)
+            usage
+            ;;
+	*) # Handle unknown options or positional parameters
+            echo "Unknown option: $1"
+            usage
+            ;;
+    esac
+done 
+index_script_file=$WORKING_DIR/indexes_to_split.script
+# Make a script of maple file indexes to split the maple files
+if [[ -f $index_script_file ]]; then
+   rm $index_script_file
+fi
+touch $index_script_file
+
+maple_files=($WORKING_DIR/maple/*.maple)  # create an array of files
+
+for mfile in "${maple_files[@]}"; do
+    echo "grep -n '>' $mfile; wc -l $mfile" >> $index_script_file
+done
+chmod 775 $index_script_file
+index_data=$WORKING_DIR/indexes_to_split.dat
+$index_script_file > $index_data
+rm $index_script_file
+
+split_script=$WORKING_DIR/split_indexes.script
+if [[ -f $split_script ]]; then
+    rm $split_script
+fi
+touch $split_script
+
+split_chrom_dir=$WORKING_DIR/split_chrom
+if [[ ! -d $split_chrom_dir ]]; then
+    mkdir -p $split_chrom_dir
+fi
+while IFS= read -r iline; do
+    n_slash=$(echo $iline | tr -dc '/' | wc -c )
+    filename=$(echo $iline | cut -d '/' -f $((n_slash+1)) | cut -f 1 -d'_')
+    chrom1=$(echo $iline | cut -d ':' -f 1)
+    read -r iline
+    chrom2=$(echo $iline | cut -d ':' -f 1)
+    echo "echo '>$filename' > $WORKING_DIR/split_chrom/$filename.1.maple" >> $split_script
+    echo "awk 'NR>$chrom1 && NR<$chrom2' $WORKING_DIR/maple/$filename.maple >> $WORKING_DIR/split_chrom/$filename.1.maple" >> $split_script
+    read -r iline
+    chrom3=$(echo $iline | cut -d ':' -f 1)
+    echo "echo '>$filename' > $WORKING_DIR/split_chrom/$filename.2.maple" >> $split_script
+    echo "awk 'NR>$chrom2 && NR<$chrom3' $WORKING_DIR/maple/$filename.maple >> $WORKING_DIR/split_chrom/$filename.2.maple" >> $split_script
+    read -r iline
+    chrom4=$(echo $iline | cut -d ':' -f 1)
+    echo "echo '>$filename' > $WORKING_DIR/split_chrom/$filename.3.maple" >> $split_script
+    echo "awk 'NR>$chrom3 && NR<$chrom4' $WORKING_DIR/maple/$filename.maple >> $WORKING_DIR/split_chrom/$filename.3.maple" >> $split_script
+    read -r iline
+    chrom5=$(echo $iline | cut -d ':' -f 1)
+    echo "echo '>$filename' > $WORKING_DIR/split_chrom/$filename.4.maple" >> $split_script
+    echo "awk 'NR>$chrom4 && NR<$chrom5' $WORKING_DIR/maple/$filename.maple >> $WORKING_DIR/split_chrom/$filename.4.maple" >> $split_script
+    read -r iline
+    chrom6=$(echo $iline | cut -d ':' -f 1)
+    echo "echo '>$filename' > $WORKING_DIR/split_chrom/$filename.5.maple" >> $split_script
+    echo "awk 'NR>$chrom5 && NR<$chrom6' $WORKING_DIR/maple/$filename.maple >> $WORKING_DIR/split_chrom/$filename.5.maple" >> $split_script
+    read -r iline
+    chrom7=$(echo $iline | cut -d ':' -f 1)
+    echo "echo '>$filename' > $WORKING_DIR/split_chrom/$filename.6.maple" >> $split_script
+    echo "awk 'NR>$chrom6 && NR<$chrom7' $WORKING_DIR/maple/$filename.maple >> $WORKING_DIR/split_chrom/$filename.6.maple" >> $split_script
+    read -r iline
+    chromend=$(echo $iline | awk '{print$1}')
+    echo "echo '>$filename' > $WORKING_DIR/split_chrom/$filename.7.maple" >> $split_script
+    echo "awk 'NR>$chrom7 && NR<=$chromend' $WORKING_DIR/maple/$filename.maple >> $WORKING_DIR/split_chrom/$filename.7.maple" >> $split_script
+done < "$index_data"
+
+chmod 775 $split_script
+$split_script
+rm $split_script
+rm $index_data

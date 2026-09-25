@@ -1,0 +1,122 @@
+#!/bin/bash
+#
+# This script is to be used only at the end of the processing of all samples for an organism.
+# This script will clean up old vms and old bucket items so that you will not be billed for hanging items.
+# It is called twice, once by master-vm.script after processing of samples, and once by
+# sra-setup.script to clean up after running tree building vms.
+#
+# You need to pass it a gc bucket name, it removes everything in the bucket, including reference files.
+# It also removes the bucket.list file that it creates.  It also removes all vm's, whether they are
+# running or not.  Be careful with this routine.  It should be only invoked once all jobs are stopped.
+# This check is done prior to running this script.  It will also remove the compute_instances.list
+#
+######################################################
+# Initialize variables with default values, read input
+######################################################
+#
+BUCKET_NAME=""
+
+usage() {
+    echo "Usage: $0 [-v|--verbose] [-b|--bucket bucket_name]"
+    exit 1 
+}
+
+# Loop through all arguments until none are left
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -v|--verbose)
+            VERBOSE=true
+            shift # Move past the flag
+            ;;
+        -b|--bucket)
+            if [[ -z "$2" || "$2" =~ ^- ]]; then
+                echo "Error: --bucket requires an string argument."
+                exit 1
+            else
+		BUCKET_NAME="$2"
+                shift 2 # Move past the flag and its value
+            fi
+            ;;
+	-h|--help)
+            usage
+            ;;
+        *) # Handle unknown options or positional parameters
+            echo "Unknown option: $1"
+            usage
+            ;;
+    esac
+done
+
+#############################################################
+# End of Initialize variables with default values, read input
+#############################################################
+#############################################################
+# Look at the bucket, clean the bucket, remove the list
+#############################################################
+
+# Grab what's in the bucket
+echo "looking at bucket"
+if [[ ! -z "$BUCKET_NAME" ]]; then
+    gsutil ls gs://$BUCKET_NAME/ > bucket.list
+else
+    touch bucket.list
+fi
+bucketfile="./bucket.list"
+#
+# If the bucket file exists and is empty, remove the bucket file,
+# If the bucket file exists and is not empty, remove the files from the bucket
+#
+if [[ -f "$bucketfile" && ! -s "$bucketfile" ]]; then
+    #Remove empty bucket file
+    echo "removing empty bucket"
+    rm $bucketfile
+elif [[ -f "$bucketfile" ]]; then
+    #Remove files from the bucket
+    echo "cleaning files from bucket"
+    while IFS= read -r bline; do
+	gsutil rm "$bline"
+    done < "$bucketfile"
+    #Remove bucket file
+    echo "removing bucket file"
+    rm $bucketfile
+fi
+##############################################################
+# End of Look at the bucket, clean the bucket, remove the list
+##############################################################
+####################################################
+# Look at the vm list clear the vms, remove the list
+####################################################
+#
+#Get list of vms
+echo "looking at vms"
+computefile="compute_instances.list"
+gcloud compute instances list > $computefile
+#
+# If the vm list file exists and is empty, remove the vm list file,
+# If the vm list file exists and is not empty, remove the vms
+#
+if [[ -f "$computefile"  && ! -s "$computefile" ]]; then
+    echo "removing empty compute vm list file"
+    #Remove empty compute file
+    rm $computefile
+elif [[ -f "$computefile" ]]; then
+    echo "removing vms from gs"
+    #flag for header
+    header=1
+    while IFS= read -r cline; do
+	array=( $cline )
+	#Remove vms, if not header
+	if [[ "$header" != "1" ]]; then
+	    gcloud compute instances delete ${array[0]} --zone=${array[1]} --quiet
+	fi
+	#flag for past header
+	header=0
+    done < "$computefile"
+    echo "removing vms list file"
+    #Remove compute file
+    rm $computefile
+fi
+echo "cleaning finished"
+###########################################################
+# End of Look at the vm list clear the vms, remove the list
+###########################################################

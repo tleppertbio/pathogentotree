@@ -1,0 +1,527 @@
+#!/bin/bash
+# initializes for running sra_now.list
+# If execution of this script results in no errors, then the sra-setup.script should be runnable.
+# This script gives you a chance to test your environment out, make adjustments, figure out how
+# to get all of the environment requirements installed before breaking into the larger scope of
+# analyzing samples from ncbi.
+#
+##############################################
+#  brew test installation
+##############################################
+# Test if brew has been installed
+brew_result=$(command -v brew)
+#
+installed_brew="N"
+if [[ "$brew_result" == "" ]]; then
+    echo "As a prerequisite, you will need to install brew."
+    echo "Here are the commands, this script will attempt to install it for you"
+    echo
+    echo '/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'
+    echo """echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile"""
+    echo
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
+    # Test if brew has been installed
+    brew_result=$(command -v brew)
+    if [[ "$brew_result" == "" ]]; then    
+	echo "You will need to install brew before continuing"
+	exit 1
+    else
+	echo "brew installed"
+	installed_brew="Y"
+    fi
+else
+    echo "Brew installed"
+    installed_brew="Y"
+fi
+##############################################
+#  end brew test installation
+##############################################
+##############################################
+#  Nucmer test installation
+##############################################
+# Test if nucmer has been installed
+nucmer_result=$(command -v nucmer)
+#
+installed_nucmer="N"
+if [[ "$nucmer_result" == "" ]]; then
+    echo "As a prerequisite, you will need to install nucmer (MUMmer)."
+    echo "Here are the commands, this script will attempt to install it for you"
+    echo 
+    echo 'brew install mummer'
+    echo
+    brew install mummer
+    # Test if nucmer has been installed
+    nucmer_result=$(command -v nucmer)
+    if [[ "$nucmer_result" == "" ]]; then    
+	echo "You will need to install nucmer before continuing"
+	exit 1
+    else
+	echo "Nucmer installed"
+	installed_nucmer="Y"
+    fi
+else
+    echo "Nucmer installed"
+    installed_nucmer="Y"
+fi
+#
+##############################################
+#  End Nucmer test installation
+##############################################
+##############################################
+#  Bedtools test installation
+##############################################
+# Test if bedtools has been installed
+bedtools_result=$(command -v bedtools)
+#
+installed_bedtools="N"
+if [[ "$bedtools_result" == "" ]]; then
+    echo "As a prerequisite, you will need to install bedtools."
+    echo "Here are the commands, this script will attempt to install it for you"
+    echo 
+    echo 'brew install bedtools'
+    echo 
+    brew install bedtools
+    # Test if nucmer has been installed
+    bedtools_result=$(command -v bedtools)
+    if [[ "$bedtools_result" == "" ]]; then    
+	echo "You will need to install bedtools before continuing"
+	exit 1
+    else
+	echo "Bedtools installed"
+	installed_bedtools="Y"
+    fi
+else
+    echo "Bedtools installed"
+    installed_bedtools="Y"
+fi
+#
+##############################################
+#  End Bedtools test installation
+##############################################
+##############################################
+#  Show-coords test installation
+##############################################
+# Test if show-coords has been installed
+show_coords_result=$(command -v show-coords)
+#
+installed_show_coords="N"
+if [[ "$show_coords_result" == "" ]]; then
+    echo "As a prerequisite, you will need to install show-coords."
+    echo "Here are the commands, this script will attempt to install it for you"
+    echo 
+    echo 'brew install mummer'
+    echo 'conda install -c bioconda mummer'
+    echo
+    if [ $installed_nucmer == "Y" ]; then
+	conda install -c bioconda mummer
+    else
+	brew install mummer
+	conda install -c bioconda mummer
+    fi
+    # Test if show-coords has been installed
+    show_coords_result=$(command -v show_coords)
+    if [[ "$show_coords_result" == "" ]]; then    
+	echo "You will need to install show-coords before continuing"
+	exit 1
+    else
+	echo "show-coords installed"
+	installed_show_coords="Y"
+    fi
+else
+    echo "Show-coords installed"
+    installed_show_coords="Y"
+fi
+#
+##############################################
+#  End Show-coords test installation
+##############################################
+##############################################
+#  java test installation
+##############################################
+# Test if java has been installed
+java_result=$(command -v java)
+#
+installed_java="N"
+if [[ "$java_result" == "" ]]; then
+    echo "As a prerequisite, you will need to install java."
+    echo "Here are the commands, this script will attempt to install it for you"
+    echo 
+    echo 'brew install openjdk@21'
+    echo
+    brew install openjdk@21
+    # Test if java has been installed
+    java_result=$(command -v java)
+    if [[ "$java_result" == "" ]]; then    
+	echo "You will need to install java before continuing"
+	exit 1
+    else
+	echo "java installed"
+	installed_java="Y"
+    fi
+else
+    echo "java installed"
+    installed_java="Y"
+fi
+#
+##############################################
+#  End java test installation
+##############################################
+##############################################
+#  picard.jar test installation
+##############################################
+# Test if picard.jar has been installed
+picard_result=$(find ~ -name "picard.jar" 2>/dev/null)
+
+installed_picard="N"
+if [[ "$picard_result" == "" ]]; then
+    echo "As a prerequisite, you will need to install picard.jar."
+    echo "Here are the commands, this script will attempt to install it for you"
+    echo 
+    echo 'java -jar ./pathogentotree/picard.jar -h'
+    echo
+    java -jar ./pathogentotree/picard.jar -h
+    # Test if picard.jar has been installed
+    picard_result=$(find ~ -name "picard.jar" 2>/dev/null)
+    if [[ "$picard_result" == "" ]]; then    
+	echo "You will need to install picard.jar before continuing"
+	exit 1
+    else
+	echo "Picard.jar installed"
+	installed_picard="Y"
+    fi
+else
+    echo "Picard.jar installed"
+    installed_picard="Y"
+fi
+#
+##############################################
+#  end picard.jar test installation
+##############################################
+##############################################
+#  bwa test installation
+##############################################
+# Test if bwa has been installed
+bwa_result=$(command -v bwa)
+#
+installed_bwa="N"
+if [[ "$bwa_result" == "" ]]; then
+    echo "As a prerequisite, you will need to install bwa."
+    echo "Here are the commands, this script will attempt to install it for you"
+    echo 
+    echo 'brew install bwa'
+    echo
+    brew install bwa
+    # Test if bwa has been installed
+    bwa_result=$(command -v bwa)
+    if [[ "$bwa_result" == "" ]]; then    
+	echo "You will need to install bwa before continuing"
+	exit 1
+    else
+	echo "bwa installed"
+	installed_bwa="Y"
+    fi
+else
+    echo "bwa installed"
+    installed_bwa="Y"
+fi
+##############################################
+#  End bwa test installation
+##############################################
+##############################################
+#  Entrez test installation
+##############################################
+# Test if Entrez has been installed
+esearch_result=$(command -v esearch)
+#
+installed_entrez="N"
+if [[ "$esearch_result" == "" ]]; then
+    echo "As a prerequisite, you will need to install Entrez Direct."
+    echo "Here are the commands, this script will attempt to install it for you"
+    echo 
+    echo 'sh -c "$(curl -fsSL https://ftp.ncbi.nlm.nih.gov/entrez/entrezdirect/install-edirect.sh)"'
+    echo 'Add to PATH (usually done by installer)'
+    echo 'export PATH=${HOME}/edirect:${PATH}'
+    echo 
+    sh -c "$(curl -fsSL https://ftp.ncbi.nlm.nih.gov/entrez/entrezdirect/install-edirect.sh)"
+    export PATH=${HOME}/edirect:${PATH}
+    # Test if Entrez has been installed
+    esearch_result=$(command -v esearch)
+    if [[ "$esearch_result" == "" ]]; then    
+	echo "You will need to install esearch before continuing"
+	exit 1
+    else
+	echo "esearch installed"
+	installed_entrez="Y"
+    fi
+else
+    echo "Entrez installed"
+    installed_entrez="Y"
+fi
+#
+##############################################
+#  End Entrez test installation
+##############################################
+##############################################
+#  ncbi dataset test installation
+##############################################
+datasets=$(conda list | grep "ncbi-datasets-cli")
+if [[ $datasets == *"ncbi-datasets-cli"* ]]; then
+    echo "ncbi-datasets-cli exists"
+    source ~/miniconda3/etc/profile.d/conda.sh
+    conda activate ncbi_datasets
+else
+    echo "ncbi-datasets-cli does not exist"
+fi
+# Test if ncbi dataset has been installed
+dataset_result=$(datasets version 2>/dev/null)
+#
+installed_dataset="N"
+if [[ "$dataset_result" == "" ]]; then
+    echo "As a prerequisite, you will need to install ncbi dataset."
+    echo "Here are the commands, this script will attempt to install it for you"
+    echo 
+    echo 'conda create -n ncbi_datasets'
+    echo 'conda activate ncbi_datasets'
+    echo 'conda install -c conda-forge ncbi-datasets-cli'
+    echo
+    echo "Conda create -n ncbi_datasets"
+    conda create -n ncbi_datasets
+    echo "Conda activate ncbi_datasets"
+    conda activate ncbi_datasets
+    echo "Conda install conda-forge"    
+    conda install -c conda-forge ncbi-datasets-cli
+    # Test if ncbi dataset has been installed
+    dataset_result=$(datasets version 2>/dev/null)
+    if [[ "$dataset_result" == "" ]]; then    
+	echo "You will need to install ncbi dataset before continuing"
+	exit 1
+    else
+	echo "ncbi dataset installed"
+	installed_dataset="Y"
+    fi
+else
+    echo "ncbi dataset installed"
+    installed_dataset="Y"
+fi
+#
+##############################################
+#  End ncbi dataset test installation
+##############################################
+##############################################
+#  pathogen reference folder setup
+##############################################
+# Define the directory path to the prepared reference files.
+echo "A reference folder named ./reference should exist in your current directory."
+echo "If it does, this program will use those files." 
+echo "The following files should be in your reference folder: reference.cluster,reference.coords,"
+echo "reference.delta,reference.dict,reference.fa, reference.fasta, reference.fasta.fai" 
+echo "There should also be a sub-folder bwa which should contain these files: bwa/reference.amb,"
+echo "bwa/reference.ann,bwa/reference.bwt,bwa/reference.pac,bwa/reference.sa" 
+echo "Please read reference.README.md in the documentation folder for how to create these files" 
+echo "Checking for the prepared reference files." 
+REFERENCE_FOLDER="./reference"
+reference_files_complete=1
+reference_fa=""
+if [ -d "${REFERENCE_FOLDER}" ]; then
+    echo "Reference directory ${REFERENCE_FOLDER} exists"
+    if [ ! -f "${REFERENCE_FOLDER}/reference.cluster" ]; then
+	echo "Reference file ${REFERENCE_FOLDER}/reference.cluster does not exist"
+	reference_files_complete=0	
+    fi	 
+    if [ ! -f "${REFERENCE_FOLDER}/reference.coords" ]; then
+	echo "Reference file ${REFERENCE_FOLDER}/reference.coords does not exist"
+	reference_files_complete=0		
+    fi	 
+    if [ ! -f "${REFERENCE_FOLDER}/reference.delta" ]; then
+	echo "Reference file ${REFERENCE_FOLDER}/reference.delta does not exist"
+	reference_files_complete=0		
+    fi	 
+    if [ ! -f "${REFERENCE_FOLDER}/reference.dict" ]; then    		    		
+	echo "Reference file ${REFERENCE_FOLDER}/reference.dict does not exist"
+	reference_files_complete=0		
+    fi
+    if [ ! -f "${REFERENCE_FOLDER}/reference.fa" ]; then    		    		
+	echo "Reference file ${REFERENCE_FOLDER}/reference.fa does not exist"
+	reference_files_complete=0
+    else
+	reference_fa="${REFERENCE_FOLDER}/reference.fa"
+    fi    
+    if [ ! -f "${REFERENCE_FOLDER}/reference.fasta" ]; then    		    		
+	echo "Reference file ${REFERENCE_FOLDER}/reference.fasta does not exist"
+	reference_files_complete=0		
+    fi
+    if [ ! -f "${REFERENCE_FOLDER}/reference.fasta.fai" ]; then    		    		
+	echo "Reference file ${REFERENCE_FOLDER}/reference.fasta.fai does not exist"
+	reference_files_complete=0		
+    fi
+    if [ -d "${REFERENCE_FOLDER}/bwa" ]; then
+	echo "Reference directory ${REFERENCE_FOLDER}/bwa exists"	
+	if [ ! -f "${REFERENCE_FOLDER}/bwa/reference.amb" ]; then    		    		
+	    echo "Reference file ${REFERENCE_FOLDER}/bwa/reference.amb does not exist"
+	    reference_files_complete=0		    
+	fi
+	if [ ! -f "${REFERENCE_FOLDER}/bwa/reference.ann" ]; then    		    		
+	    echo "Reference file ${REFERENCE_FOLDER}/bwa/reference.ann does not exist"
+	    reference_files_complete=0		    	    
+	fi
+	if [ ! -f "${REFERENCE_FOLDER}/bwa/reference.bwt" ]; then    		    		
+	    echo "Reference file ${REFERENCE_FOLDER}/bwa/reference.bwt does not exist"
+	    reference_files_complete=0		    	    
+	fi
+	if [ ! -f "${REFERENCE_FOLDER}/bwa/reference.pac" ]; then    		    		
+	    echo "Reference file ${REFERENCE_FOLDER}/bwa/reference.pac does not exist"
+	    reference_files_complete=0		    	    
+	fi
+	if [ ! -f "${REFERENCE_FOLDER}/bwa/reference.sa" ]; then    		    		
+	    echo "Reference file ${REFERENCE_FOLDER}/bwa/reference.sa does not exist"
+	    reference_files_complete=0		    	    
+	fi
+    fi
+else
+    mkdir ${REFERENCE_FOLDER}           
+    reference_bwa_folder="${REFERENCE_FOLDER}/bwa" 
+    mkdir $reference_bwa_folder
+    reference_files_complete=0		    	    	        
+fi
+if [[ "$reference_fa" == "" || "$reference_files_complete" == 0 ]]; then
+    echo "Please enter the full path to the reference.fa file you wish to use."
+    echo "If instead, you wish do download a GCA file from ncbi, please enter the GCA number including the version."    
+    read reference_fa
+    if [[ "$reference_fa" == "GCA_"* ]]; then
+	#datasets download genome accession GCA_003013715.2 --include gff3,rna,cds,protein,genome,seq-report
+	#eg GCA_ASM301371v2_genomic.fna
+	datasets download genome accession $reference_fa --include gff3,rna,cds,protein,genome,seq-report	
+	if [ -f ncbi_dataset.zip ]; then
+	    unzip ncbi_dataset.zip
+	    cd ncbi_dataset/data/${reference_fa}
+	    mv ${reference_fa} ../../../reference/reference.fa
+	    reference_fa="./reference/reference.fa"
+	    rm ncbi_dataset.zip
+	    mv README.md ncbi_dataset
+	    cd ../../../..
+	fi
+    else
+	while [ ! -f "${reference_fa}" ]; do
+	    echo "File not found."	
+	    echo "Please enter the full path to the reference.fa file you wish to use."
+	    read reference_fa	
+	done
+	cp ${reference_fa} ${REFERENCE_FOLDER}
+    fi
+    cp ./reference/reference.fa ${REFERENCE_FOLDER}/reference.copy.fa
+    cd ${REFERENCE_FOLDER}
+    #Run the nucmer program:
+    echo "Running the nucmer program"                        
+    nucmer -p reference --coords --maxmatch --nosimplify reference.fa reference.copy.fa
+    #Run the show-coords program, then modify the result to look like masked_ref.bed:
+    echo "Show coordinates and modify the results using masked_ref.bed"                    
+    show-coords -r -T -H reference.delta > masked_ref_BEFORE_ORDER.bed
+    awk '{if ($1 != $3 && $2 != $4) print $0}' masked_ref_BEFORE_ORDER.bed > masked_ref_BEFORE_ORDER2.bed
+    awk '{print $8"\t"$1"\t"$2}' masked_ref_BEFORE_ORDER2.bed > masked_ref.bed
+    echo "Mask fasta using bedtools"                
+    #Run the bedtools maskfasta:
+    bedtools maskfasta -fi reference.fa -bed masked_ref.bed -fo reference.fasta
+    echo "Use samtools"            
+    #Run the samtools faidx:
+    samtools faidx reference.fasta
+    echo "Create Sequence Dictionary"        
+    #Run the picard.jar v 2.26.10 CreateSequenceDictionary
+    java -jar ../bin/picard.jar CreateSequenceDictionary R=reference.fasta O=reference.dict
+    echo "Make ./bwa files"    
+    #Create a ./bwa directory and run the bwa index program:
+    #mkdir bwa
+    bwa index -p bwa/reference reference.fasta
+    cd ..
+    echo "Copying reference files to bucket"
+    gsutil cp ${REFERENCE_FOLDER}/bwa/reference.amb gs://${BUCKET_NAME}
+    gsutil cp ${REFERENCE_FOLDER}/bwa/reference.ann gs://${BUCKET_NAME}
+    gsutil cp ${REFERENCE_FOLDER}/bwa/reference.bwt gs://${BUCKET_NAME}
+    gsutil cp ${REFERENCE_FOLDER}/bwa/reference.pac gs://${BUCKET_NAME}
+    gsutil cp ${REFERENCE_FOLDER}/bwa/reference.sa gs://${BUCKET_NAME}
+    gsutil cp ${REFERENCE_FOLDER}/reference.cluster gs://${BUCKET_NAME}
+    gsutil cp ${REFERENCE_FOLDER}/reference.coords gs://${BUCKET_NAME}
+    gsutil cp ${REFERENCE_FOLDER}/reference.delta gs://${BUCKET_NAME}
+    gsutil cp ${REFERENCE_FOLDER}/reference.dict gs://${BUCKET_NAME}
+    gsutil cp ${REFERENCE_FOLDER}/reference.fa gs://${BUCKET_NAME}
+    gsutil cp ${REFERENCE_FOLDER}/reference.fasta gs://${BUCKET_NAME}
+    gsutil cp ${REFERENCE_FOLDER}/reference.fasta.fai gs://${BUCKET_NAME}
+fi
+conda deactivate
+##############################################
+#  End pathogen reference folder setup
+##############################################
+##############################################
+#  mask folder setup
+##############################################
+# Define the directory path to the prepared mask files.
+echo "A mask_files folder named ./mask_files should exist in your current directory."
+echo "If it does, this program will use those files." 
+echo "The following files should be in your mask_files folder: fasTAN_1.bed, fasTAN_2.bed,"
+echo "fasTAN_3.bed, fasTAN_4.bed, fasTAN_5.bed, fasTAN_6.bed and fasTAN_7.bed" 
+echo "These folders were created at UCSC to mask highly repetative regions."
+echo "You may use your own bed files and substitute the files we have used with your own." 
+echo "Checking for the prepared masking files."
+MASKING_FOLDER="./mask_files"
+masking_files_complete=1
+if [ -d "${MASKING_FOLDER}" ]; then
+    echo "Masking directory ${MASKING_FOLDER} exists"
+    if [ ! -f "${MASKING_FOLDER}/fasTAN_1.bed" ]; then
+	echo "Masking file ${MASKING_FOLDER}/fasTAN_1.bed does not exist"
+	masking_files_complete=0	
+    fi	 
+    if [ ! -f "${MASKING_FOLDER}/fasTAN_2.bed" ]; then
+	echo "Masking file ${MASKING_FOLDER}/fasTAN_2.bed does not exist"
+	masking_files_complete=0	
+    fi	 
+    if [ ! -f "${MASKING_FOLDER}/fasTAN_3.bed" ]; then
+	echo "Masking file ${MASKING_FOLDER}/fasTAN_3.bed does not exist"
+	masking_files_complete=0	
+    fi	 
+    if [ ! -f "${MASKING_FOLDER}/fasTAN_4.bed" ]; then
+	echo "Masking file ${MASKING_FOLDER}/fasTAN_4.bed does not exist"
+	masking_files_complete=0	
+    fi	 
+    if [ ! -f "${MASKING_FOLDER}/fasTAN_5.bed" ]; then
+	echo "Masking file ${MASKING_FOLDER}/fasTAN_5.bed does not exist"
+	masking_files_complete=0	
+    fi	 
+    if [ ! -f "${MASKING_FOLDER}/fasTAN_6.bed" ]; then
+	echo "Masking file ${MASKING_FOLDER}/fasTAN_6.bed does not exist"
+	masking_files_complete=0	
+    fi	 
+    if [ ! -f "${MASKING_FOLDER}/fasTAN_7.bed" ]; then
+	echo "Masking file ${MASKING_FOLDER}/fasTAN_7.bed does not exist"
+	masking_files_complete=0	
+    fi
+else
+    mkdir "$MASKING_FOLDER"
+    git clone https://github.com/tleppertbio/pathogentotree/mask_files  #clone mask_files repository into general pathogen dir
+fi
+if [[ "$masking_files_complete" == 0 ]]; then
+    echo
+    echo "Not all masking files were found."
+    echo "Masking is recommended, but will not be performed, due to missing files."    
+    echo
+fi
+#
+##############################################
+#  End mask folder setup
+##############################################
+##############################################
+#  setup partials folder
+##############################################
+#
+if [[ ! -d "./bin/partials" ]]; then
+    echo "WARNING: ./bin/partials does not exist."
+elif [[ ! -f "./bin/partials/earlybam-pickup-startup.script" ]]; then
+    echo "WARNING: ./bin/partials/earlybam-pickup-startup.script does not exist."
+elif [[ ! -f "./bin/partials/finalbam-pickup-startup.script" ]]; then
+    echo "WARNING: ./bin/partials/finalbam-pickup-startup.script does not exist."    
+elif [[ ! -f "./bin/partials/trimmed-pickup-startup.script" ]]; then
+    echo "WARNING: ./bin/partials/trimmed-pickup-startup.script does not exist."    
+fi
+#
+##############################################
+#  End setup partials folder
+##############################################

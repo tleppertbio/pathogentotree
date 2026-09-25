@@ -1,0 +1,6 @@
+#tail -n+2 /scratch2/russ/BTE/Cauris/parsimony_per_site.tsv | awk -F$'\t' '$2 >= 1000 { print "chr\t" ($2-1) "\t" $2;}' > parsimony_mask.bed
+tail -n+2 parsimony_per_site.tsv | awk '$2 >= 1000' | awk '{print "chr\t" int($1) - 1 "\t" int($1)}' > parsimony_mask_tami.bed
+
+conda install bedtools
+echo -e "chr\t12249773" > genome_size.tsv
+bedtools slop -i parsimony_mask.bed -b 500 -g genome_size.tsv | bedtools merge > parsimony_mask_pad500_merged.bed

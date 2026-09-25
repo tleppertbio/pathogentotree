@@ -1,0 +1,31 @@
+#!/bin/bash
+# Claude -translated from python
+# 4/23/26
+# v1.0
+#
+# Program invoke_vm.script is called from master_vm.script
+# Looks in the ./ current directory for execute-vm*.script's
+# Executes the ./execute-vm*.script (invokes a vm running the script from /vm-script/) and then
+# moves the ./execute-vm*.script to ./vm-scripts/done
+#
+#
+script_dir=$(pwd)                      # Current directory
+done_dir=$script_dir/vm-scripts/done    # does ./vm-scripts/done exist?
+#
+mkdir -p "$done_dir"               # Create it if it doesn't exist
+#
+pattern="execute-vm*.script"   # Look for all files execute-vm*.script in ./
+shopt -s nullglob              # Enable nullglob so the array s empty if no files match
+files=($script_dir/$pattern)   # store files in 'files'
+for f in "${files[@]}"; do     # For each file search_pattern*.script
+  echo "Running $f..."    
+  output=$(bash "$f" 2>&1)            # Execute the file
+  exit_code=$?
+  if [[ $exit_code -ne 0 ]]; then            # It may throw an error
+    echo "Error in $f:"                    # If it does...
+    echo "$output"                         # Print it
+  fi
+  #  
+  mv "$f" "$done_dir"
+  echo "Moved $f to $done_dir"        # Move script to ./vm-scripts/done
+  done

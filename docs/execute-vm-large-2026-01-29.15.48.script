@@ -1,0 +1,2 @@
+gcloud compute instances create matopt-vm --zone="+google_region+"-a --machine-type=n2d-highmem-96 --image-family=cos-stable --image-project=cos-cloud --metadata-from-file startup-script=./SRRnnn-vm.script --service-account="+service_acc+" --scopes=https://www.googleapis.com/auth/devstorage.read_write
+mv /Users/xxx/Desktop/candidas/pathogentotree/date_C.auris/vm-scripts/SRR16249997-startup.script /Users/xxx/Desktop/candidas/pathogentotree/date_C.auris/vm-running/large/SRR16249997-startup.script
