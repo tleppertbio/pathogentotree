@@ -6,7 +6,7 @@ a parsimony phylogenetic tree (UShER / matOptimize) with metadata on Google Clou
 
 ![Pathogentotree_flowchart](images/Pathogentotree_flowchart.png)
 
-> **Status:** under active development. See [Known issues](#known-issues)
+> **Status:** not under active development. See [Known issues](#known-issues)
 > before running this on a new project.
 
 ## Contents
