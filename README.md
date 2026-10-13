@@ -5,7 +5,7 @@ data from NCBI, call variants from reference, mask problematic regions, and buil
 a parsimony phylogenetic tree (UShER / matOptimize) with metadata on Google Cloud.
 
 ![Pathogentotree_flowchart](/images/Pathogentotree_flowchart.png)
-
+![Pathogentotree_flow_chart](/images/Pathogentotree_flowchart.png).
 > **Status:** not under active development. See [Known issues](#known-issues)
 > before running this on a new project.
 
