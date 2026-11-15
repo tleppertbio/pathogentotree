@@ -9,6 +9,10 @@ a parsimony phylogenetic tree (UShER / matOptimize) with metadata on Google Clou
 > **Status:** not under active development. See [Known issues](#known-issues)
 > before running this on a new project.
 
+## Related Projects
+
+- [qc_classifier](https://github.com/tleppertbio/qc_classifier): predicts which NCBI runs will fail pathogentotree's N-fraction QC, using metadata available before download.
+  
 ## Contents
 
 - [Prerequisites](#prerequisites)
