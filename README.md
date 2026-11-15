@@ -246,6 +246,8 @@ Tracking in [issues](../../issues). Highlights as of this writing:
 
 ## Acknowledgments
 
-This pipeline was developed by Tami Leppert at the UC Santa Cruz Genomics Institute (Pathogen Genomics) in the laboratory of Russell Corbett-Detig, with funding from the Centers for Disease Control and Prevention (CDC), 2024–2026.
+This pipeline was developed by Tami Leppert at the UC Santa Cruz Genomics Institute (Pathogen Genomics) 
+in the laboratory of Russell Corbett-Detig, with funding from the Centers for Disease Control and 
+Prevention (CDC), 2024–2026.
 
 
